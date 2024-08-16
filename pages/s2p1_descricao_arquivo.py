@@ -30,17 +30,26 @@ oc = st.session_state["base reader"].output_columns
 dict_data = []
 for c in st.session_state["base reader"].name_columns:
     is_na = df[c].isna().any()
-    dict_data.append(["Nome", c, "Textual com valores faltantes" if is_na else "Textual"])
+    if st.session_state["base reader"].descriptions is None:
+        dict_data.append(["Nome", c, "Textual com valores faltantes" if is_na else "Textual"])
+    else:
+        dict_data.append(["Nome", c, st.session_state["base reader"].descriptions[c], "Textual com valores faltantes" if is_na else "Textual"])
 
 for i,c in enumerate(st.session_state["base reader"].input_columns):
     is_na = df[c].isna().any()
     vals = list(set(sorted(df.dropna()[c].values)))
-    dict_data.append([str(i+1), c, get_numeric_column_description(vals, is_na)])
+    if st.session_state["base reader"].descriptions is None:
+        dict_data.append([str(i+1), c, get_numeric_column_description(vals, is_na)])
+    else:
+        dict_data.append([str(i+1), c,  st.session_state["base reader"].descriptions[c], get_numeric_column_description(vals, is_na)])
     
 for c in st.session_state["base reader"].output_columns:
     is_na = df[c].isna().any()
     vals = list(set(sorted(df.dropna()[c].values)))
-    dict_data.append(["Saída", c, get_numeric_column_description(vals, is_na)])
+    if st.session_state["base reader"].descriptions is None:
+        dict_data.append(["Saída", c, get_numeric_column_description(vals, is_na)])
+    else:
+        dict_data.append(["Saída", c, st.session_state["base reader"].descriptions[c], get_numeric_column_description(vals, is_na)])
 
 dict_df = pd.DataFrame(data=dict_data, columns=["Fator", "Nome da coluna", "Tipo de dado"])
 st.session_state["descricao arquivo"].df = deepcopy(dict_df)

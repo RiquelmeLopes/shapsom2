@@ -47,11 +47,33 @@ if file:
     df = (read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)).map(parse_dataframe)
     df.columns = [str(c) for c in df.columns]
 
+    descriptions = df.iloc[0]
+
+    if all(isinstance(x, str) for x in descriptions):
+        df.drop(df.index[0], inplace=True)
+        df = df.reset_index(drop=True)
+
+        # Tipos verdadeiros
+        df_types = [type(df.iloc[0].dropna().iloc[x]).__name__  for x in range(df.shape[1])]
+
+        df_dropna = deepcopy(df)
+        df_dropna = df_dropna.dropna()
+
+        # Atualizando tipos
+        for i in range(df_dropna.shape[1]):
+            if df_types[i] != 'str':
+                df_dropna[df_dropna.columns[i]] = df_dropna.iloc[:,i].astype(df_types[i]+'64')
+    else:
+        descriptions = None
+        df_dropna = deepcopy(df)
+        df_dropna = df_dropna.dropna()
+
     st.session_state["base reader"].filename = file.name
     st.session_state["base reader"].original_database = deepcopy(df)
-    st.session_state["base reader"].workable_database = deepcopy(df.dropna())
+    st.session_state["base reader"].workable_database = deepcopy(df_dropna)
+    st.session_state["base reader"].descriptions = descriptions
     st.session_state["base reader"].textual_columns = list(st.session_state["base reader"].workable_database.select_dtypes(include=['object']).columns)
-    st.session_state["base reader"].numeric_columns = list(st.session_state["base reader"].workable_database.select_dtypes(include=['float64', 'int64']).columns)
+    st.session_state["base reader"].numeric_columns = list(st.session_state["base reader"].workable_database.select_dtypes(include=['float64', 'int64','int','float']).columns)
     st.dataframe(st.session_state["base reader"].original_database[:5], use_container_width=True)
     
     st.divider()

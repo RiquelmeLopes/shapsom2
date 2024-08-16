@@ -127,17 +127,158 @@ class S2P1_DescricaoArquivo():
         self.descricao = ""
         self.on_report = False
         self.finished_selection = False
+        self.has_descriptions = False
     
     def write_page(self, name: str="descricao_arquivo.pdf"):
         # Esse é o dataframe utilizado com as informações de cada coluna
-        df: pd.DataFrame = deepcopy(self.df)
+        df: pd.DataFrame = deepcopy(self.df).to_numpy()
         # Essa é a descrição que fala quando o arquivo foi gerado, quantas colunas tem, blablabla
         descricao: str = self.descricao
+
+        decricao2 = '''Um dicionário de dados é uma tabela que contém informações sobre os dados disponibilizados. As
+             informações reveladas abaixo revelam o número atribuído a cada fator, sua descrição quando
+             disponibilizada e seu tipo de dado.'''
+        
+        self.has_descriptions = df.shape[1] == 4
+
+        def insert_newlines(text, every=40):
+            lines = []
+            while len(text) > every:
+                split_index = text.rfind(' ', 0, every)
+                if split_index == -1:
+                    split_index = every
+                lines.append(text[:split_index].strip())
+                text = text[split_index:].strip()
+            lines.append(text)
+            return '\n'.join(lines)
+
+        def dividirlinhas(data, every):
+            if(len(data)>every):
+                data = insert_newlines(data, every=every)
+            return data
+
+        if(not self.has_descriptions):
+            for i in range(df.shape[0]):
+                df[i][1]=dividirlinhas(df[i][1],65)
+            for i in range(df.shape[0]):
+                df[i][2]=dividirlinhas(df[i][2],25)
+        else:
+            for i in range(df.shape[0]):
+                df[i][1]=dividirlinhas(df[i][1],30)
+            for i in range(df.shape[0]):
+                df[i][2]=dividirlinhas(df[i][2],30)
+            for i in range(df.shape[0]):
+                df[i][3]=dividirlinhas(df[i][3],25)
+        df = df.tolist()
+
+        # Pdf
+        page_w, page_h = letter
+        c = canvas.Canvas(name)
+        c, h = self.gerarSecao(c,'t','1. Descrição do arquivo de entrada',65)
+        c, h = self.gerarSecao(c,'s','1.1 Dados de Treinamento',h)
+        c, h = self.gerarSecao(c,'p',descricao,h)
+        c, h = self.gerarSecao(c,'p',decricao2,h-28)
+        c, h = self.gerarSecaoTabela(c,h,df)
+        c, h = self.gerarLegenda(c,'Tabela 1.1 - Dicionário de Dados', h+5)
+        c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+        c.saveState()
+        c.showPage()
+        c.save()
+
         print("#"*80)
         print("Escrevendo", name)
         print(descricao)
         print(df)
         print("#"*80)
+
+    def gerarTabela(self, data):
+        if(self.has_descriptions):
+            data = [['Fator','Nome da coluna','Descrição do dado','Tipo de dado']]+data
+        else:
+            data = [['Fator','Nome da coluna','Tipo de dado']]+data
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('WORDWRAP', (0, 0), (-1, -1), 'WORD'),
+        ])
+
+        if(self.has_descriptions):
+            col_widths = [40,165,165,100]
+        else:
+            col_widths = [40,330,100]
+
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(style)
+        return table
+    
+    def gerarTabelaPdf(self, c,data,h,start):
+        page_w, page_h = letter
+        if(len(data)>start):
+            data2 = []
+            end = 0
+            for i in range(len(data)-start+1):
+                table = self.gerarTabela(data2)
+                w_paragrafo, h_paragrafo = table.wrapOn(c, 0, 0)
+                if(page_h - h- h_paragrafo< inch):
+                    end = i
+                    break
+
+                if(i<len(data)-start):
+                    data2+= [data[i+start]]
+            table.drawOn(c, inch, page_h - h- h_paragrafo)
+            return c, h_paragrafo+h, start+end
+        else:
+            return c, h, start
+        
+    def quebraPagina(self, c, h, tamanho):
+        page_w, page_h = letter
+        if(h>tamanho):
+            c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+            c.saveState()
+            c.showPage()
+            h=65
+        return c, h
+    
+    def gerarSecaoTabela(self, c,h,dados):
+        start = 0
+        start2 = 0
+        while(True):
+            c, h, start = self.gerarTabelaPdf(c,dados,h,start)
+            if(start==start2):
+                break
+            else:
+                c, h = self.quebraPagina(c, h, 0)
+                start2=start
+        return c, h
+
+    def gerarSecao(self, c,tipo,paragrafo,h):
+        page_w, page_h = letter
+        if(tipo=='p'):
+            style_paragrafo = ParagraphStyle("paragrafo", fontName="Helvetica", fontSize=12, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='t'):
+            style_paragrafo = ParagraphStyle("titulo", fontName="Helvetica-Bold", fontSize=16, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='s'):
+            style_paragrafo = ParagraphStyle("subtitulo", fontName="Helvetica-Bold", fontSize=14, alignment=4, leading=18, encoding="utf-8")
+        message_paragrafo = Paragraph(paragrafo, style_paragrafo)
+        w_paragrafo, h_paragrafo = message_paragrafo.wrap(page_w -2*inch, page_h)
+        message_paragrafo.drawOn(c, inch, page_h - h- h_paragrafo)
+        return c, h+h_paragrafo+30
+    
+    def gerarLegenda(self, c,paragrafo,h):
+        page_w, page_h = letter
+        style_paragrafo = ParagraphStyle("paragrafo", fontName="Helvetica-Oblique", fontSize=10, alignment=4, leading=18, encoding="utf-8", textColor = 'blue')
+        message_paragrafo = Paragraph(paragrafo, style_paragrafo)
+        w_paragrafo, h_paragrafo = message_paragrafo.wrap(page_w -2*inch, page_h)
+        message_paragrafo.drawOn(c, inch, page_h - h- h_paragrafo)
+        return c, h+h_paragrafo+20
 
 class S2P2_MapaSom():
     def __init__(self):
