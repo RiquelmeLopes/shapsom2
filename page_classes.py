@@ -3,7 +3,7 @@ from copy import deepcopy
 from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Image as ReportlabImage
 from reportlab import platypus
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
@@ -41,11 +41,23 @@ class S1P1_MapaExploratorio():
     
     def write_page(self, name: str="mapa_exploratorio.pdf"):
         # Essa é a imagem do mapa
-        mapa_img = Image.open(self.img_path)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(mapa_img.size)
-        print("#"*80)
+        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        if os.path.exists('required_files//cabecalho.jpeg'):
+            elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+            elements.append(Spacer(1, 18))
+
+        # Adiciona a imagem do mapa ao PDF
+        if os.path.exists(self.img_path):
+            mapa_img = Image.open(self.img_path)
+            elements.append(Paragraph("Mapa Exploratório", styles['Title']))
+            elements.append(ReportlabImage(self.img_path, width=400, height=300))
+            elements.append(Spacer(1, 12))
+
+        # Gera o PDF
+        doc.build(elements)
         
 class S1P2_AnaliseEstatistica():
     def __init__(self):
@@ -54,12 +66,32 @@ class S1P2_AnaliseEstatistica():
         self.finished_selection = False
     
     def write_page(self, name: str="analise_estatistica.pdf"):
-        # Esse é o dataframe com as estatísticas
         df: pd.DataFrame = deepcopy(self.dfmc)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(df)
-        print("#"*80)
+        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+        if os.path.exists('required_files//cabecalho.jpeg'):
+            elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+            elements.append(Spacer(1, 18))
+
+        elements.append(Paragraph("Análise Estatística", styles['Title']))
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            data = [df.columns.tolist()] + df.values.tolist()
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 12))
+
+        # Gera o PDF
+        doc.build(elements)
 
 class S1P3_GraficoDispersao():
     def __init__(self):
@@ -71,12 +103,23 @@ class S1P3_GraficoDispersao():
         self.variavel_dispersao = ""
     
     def write_page(self, name: str="grafico_dispersao.pdf"):
-        # Essa é a imagem da dispersão
-        dispersao_img = Image.open(self.img_path)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(dispersao_img.size)
-        print("#"*80)
+        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        if os.path.exists('required_files//cabecalho.jpeg'):
+            elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+            elements.append(Spacer(1, 18))
+
+        # Adiciona o gráfico de dispersão ao PDF
+        if os.path.exists(self.img_path):
+            dispersao_img = Image.open(self.img_path)
+            elements.append(Paragraph(f"Gráfico de Dispersão - {self.variavel_dispersao}", styles['Title']))
+            elements.append(ReportlabImage(self.img_path, width=400, height=300))
+            elements.append(Spacer(1, 12))
+
+        # Gera o PDF
+        doc.build(elements)
 
 class S2P1_DescricaoArquivo():
     def __init__(self):
@@ -180,7 +223,7 @@ class S2P6_AnaliseGrupos():
     
     def write_page(self, name: str="analise_grupos.pdf"):
         # Setup document
-        doc = SimpleDocTemplate(name, pagesize=A4)
+        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
         styles = getSampleStyleSheet()
 
@@ -188,6 +231,10 @@ class S2P6_AnaliseGrupos():
         for i, (output_average, municipio_df, shap_df, image_path) in enumerate(list(zip(self.output_averages, self.municipio_dfs, self.shap_dfs, self.image_paths))):
             # Title
             title = f"Grupo {i+1}"
+            if os.path.exists('required_files//cabecalho.jpeg'):
+                elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+                elements.append(Spacer(1, 18))
+
             elements.append(Paragraph(title, styles['Title']))
 
             # Output averages section
