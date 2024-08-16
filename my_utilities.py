@@ -481,7 +481,7 @@ def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names:
             total_sections = include_on_report.count(True)
             pdf_names = []
             for i, (section_id, section_name) in enumerate(_id_name_selected):
-                rand_pdf = os.path.join("tempfiles", f"{generate_random_string(10)}.pdf")
+                rand_pdf = os.path.join("tempfiles//", f"{generate_random_string(10)}.pdf")
                 report_bar.progress(i / total_sections, f"Adicionando {section_name}...")
                 with globals()["lock"]:
                     st.session_state[section_id].write_page(rand_pdf)
@@ -489,11 +489,24 @@ def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names:
                 pdf_names.append(rand_pdf)
             
             with globals()["lock"]:
-                output_file = f"{generate_random_string(10)}.pdf"
+                output_file = f"tempfiles//{generate_random_string(10)}.pdf"
+                pdf_names = ['required_files//capa.pdf'] + pdf_names
                 merge_pdfs(pdf_names, output_file)
-                for f in filter(lambda a : os.path.exists(a), pdf_names):
+                for f in filter(lambda a : os.path.exists(a) and a != 'required_files//capa.pdf', pdf_names):
                     os.remove(f)
             report_bar.progress(1.0, f"Relatório concluído.")
+
+    try:
+        if output_file and os.path.exists(output_file):        
+            with open(output_file, "rb") as pdf_file:
+                st.download_button(
+                    label="Baixar relatório",
+                    data=pdf_file,
+                    file_name='Relatorio_Grupos_Final.pdf',
+                    mime='application/pdf'
+                )
+    except:
+        pass
 
     generic_page_bottom(page_before, page_after)
 
@@ -519,9 +532,21 @@ def generate_individual_reports(title: str, progress: float, page_before: str, p
                 pdf_names.append(rand_pdf)
             
             with globals()["lock"]:
-                output_file = f"{generate_random_string(10)}.pdf"
+                output_file = f"tempfiles//{generate_random_string(10)}.pdf"
+                pdf_names = ['required_files//capa.pdf'] + pdf_names
                 merge_pdfs(pdf_names, output_file)
-                for f in filter(lambda a : os.path.exists(a), pdf_names):
+                for f in filter(lambda a : os.path.exists(a) and a != 'required_files//capa.pdf', pdf_names):
                     os.remove(f)
             report_bar.progress(1.0, f"Relatórios concluídos.")
+    try:
+        if output_file and os.path.exists(output_file):        
+            with open(output_file, "rb") as pdf_file:
+                st.download_button(
+                    label="Baixar relatório",
+                    data=pdf_file,
+                    file_name='Relatorios_Individuais_Final.pdf',
+                    mime='application/pdf'
+                )
+    except:
+        pass
     generic_page_bottom(page_before, page_after)
