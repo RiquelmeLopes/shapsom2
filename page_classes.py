@@ -299,11 +299,63 @@ class S2P2_MapaSom():
         # É só puxar os parâmetros em cima pra compor o relatório
         sigma: int = self.sigma
         size: int = self.size
-        #...
+        lr: float = self.lr
+        epochs: int = self.epochs
+        cluster_distance: float = self.cluster_distance
+        topology: str = self.topology
+
+        
+
+        textoSOM = '''Um Mapa Auto-Organizável (SOM) é uma técnica de aprendizado não supervisionado usada para visualizar e organizar dados complexos em uma representação bidimensional. Os principais parâmetros que definem um mapa SOM incluem:
+                    \n●	Topologia: Define como as células do mapa influenciam suas vizinhas em um arranjo geométrico.
+                    \n●	Distância de cluster: Determina como as unidades são agrupadas com base na similaridade dos dados.
+                    \n●	Épocas: Representam o número de vezes que o modelo passa pelos dados durante o treinamento.
+                    \n●	Tamanho do mapa: Define o número total de unidades no mapa.
+                    \n●	Sigma: O raio de influência de cada unidade durante o treinamento.
+                    \n●	Taxa de aprendizado: Controla a magnitude das atualizações dos pesos das unidades durante o treinamento.
+                    '''
+        
+        page_w, page_h = letter
+        c = canvas.Canvas(name)
+        c, h = self.gerarSecao(c,'s','1.2 Parâmetros de Treinamento',65)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[0], h)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[2], h-20)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[4], h-20)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[6], h-20)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[8], h-20)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[10], h-20)
+        c, h = self.gerarSecao(c,'p', textoSOM.split('\n')[12], h-20)
+        c, h = self.gerarSecao(c,'p','Nesta seção, apresentamos os hiperparâmetros utilizados para configurar o algoritmo. Os dados mencionados no parágrafo anterior foram aplicados a um algoritmo de Mapas Auto-Organizáveis (Mapas SOM), utilizando os seguintes parâmetros:',h)
+        c, h = self.gerarSecao(c,'p','• Topologia: '+str(topology),h-28)
+        c, h = self.gerarSecao(c,'p','• Distância de cluster: '+str(cluster_distance),h-28)
+        c, h = self.gerarSecao(c,'p','• Épocas: '+str(epochs),h-28)
+        c, h = self.gerarSecao(c,'p','• Tamanho do mapa: '+str(size),h-28)
+        c, h = self.gerarSecao(c,'p','• Sigma: '+str(sigma),h-28)
+        c, h = self.gerarSecao(c,'p','• Taxa de aprendizado: '+str(lr),h-28)
+        h = h+30
+        c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+        c.saveState()
+        c.showPage()
+        c.save()
+
+
         print("#"*80)
         print("Escrevendo", name)
         print(self.sigma, self.size, self.lr, self.epochs, self.cluster_distance, self.topology, self.output_influences)
         print("#"*80)
+
+    def gerarSecao(self, c,tipo,paragrafo,h):
+        page_w, page_h = letter
+        if(tipo=='p'):
+            style_paragrafo = ParagraphStyle("paragrafo", fontName="Helvetica", fontSize=12, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='t'):
+            style_paragrafo = ParagraphStyle("titulo", fontName="Helvetica-Bold", fontSize=16, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='s'):
+            style_paragrafo = ParagraphStyle("subtitulo", fontName="Helvetica-Bold", fontSize=14, alignment=4, leading=18, encoding="utf-8")
+        message_paragrafo = Paragraph(paragrafo, style_paragrafo)
+        w_paragrafo, h_paragrafo = message_paragrafo.wrap(page_w -2*inch, page_h)
+        message_paragrafo.drawOn(c, inch, page_h - h- h_paragrafo)
+        return c, h+h_paragrafo+30
 
 class S2P3_Heatmap():
     def __init__(self):

@@ -51,7 +51,12 @@ for c in st.session_state["base reader"].output_columns:
     else:
         dict_data.append(["Saída", c, st.session_state["base reader"].descriptions[c], get_numeric_column_description(vals, is_na)])
 
-dict_df = pd.DataFrame(data=dict_data, columns=["Fator", "Nome da coluna", "Tipo de dado"])
+if st.session_state["base reader"].descriptions is None:
+    colunas = ["Fator", "Nome da coluna", "Tipo de dado"]
+else:
+    colunas = ["Fator", "Nome da coluna", "Descrição do dado","Tipo de dado"]
+
+dict_df = pd.DataFrame(data=dict_data, columns=colunas)
 st.session_state["descricao arquivo"].df = deepcopy(dict_df)
 st.session_state["descricao arquivo"].descricao = descricao
 st.dataframe(dict_df, hide_index=True, use_container_width=True)
