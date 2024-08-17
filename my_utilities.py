@@ -521,6 +521,7 @@ def generate_individual_reports(title: str, progress: float, page_before: str, p
         if st.form_submit_button('**Gerar relatório**'):
             if use_mark_all:
                 list_selected_labels = labels
+            list_selected_labels.sort()
             report_bar = st.progress(0.0)
             pdf_names = []
             for i, municipio in enumerate(list_selected_labels):

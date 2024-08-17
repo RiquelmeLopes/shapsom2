@@ -15,6 +15,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+from pypdf import PdfReader, PdfWriter
 
 class BaseReader():
     def __init__(self):
@@ -679,11 +680,149 @@ class S2P8_Anomalias():
         # Esse é o dataframe que você vai usar. Essa parte já calcula quais são as anomalias
         anomalias_df: pd.DataFrame = deepcopy(self.df)
         anomalias_df = anomalias_df[:int(len(anomalias_df) * self.porcentagem / 100)]
+
+        # Adiciona coluna de índice no dataframe
+        anomalias_df = anomalias_df.sort_index()
+        anomalias_df.insert(0, ' ', anomalias_df.index)
+
+        # Faz alguns ajustes do dataframe
+        anomalias_df['Distância do Centroide'] = [f'{x:.3f}' for x in anomalias_df['Distância do Centroide']]
+        anomalias_df[anomalias_df.columns.tolist()[6]] = [f'{x:.3f}' for x in anomalias_df[anomalias_df.columns.tolist()[6]]]
+        anomalias_df['Fator mais influente'] = ['...'.join(x.rsplit(x[39:-8] or '...', 1)) for x in anomalias_df['Fator mais influente']]
+        anomalias_df['Fator menos influente'] = ['...'.join(x.rsplit(x[39:-8] or '...', 1)) for x in anomalias_df['Fator menos influente']]
+        self.ajustarDataFrames(anomalias_df, ['Municípios'], 13)
+        self.ajustarDataFrames(anomalias_df, ['Fator mais influente', 'Fator menos influente'], 20)
+        anomalias_df.columns = [' ', 'Municípios', 'X', 'Y', 'Grupo', self.dividirlinhas('Distância Centroide', 10),
+                                'Fator', self.dividirlinhas('Fator mais influente', 28), self.dividirlinhas('Fator menos influente', 28)]
+
+        # Constroi e gera o PDF
+        page_w, page_h = letter
+        texto1 = 'A análise de anomalias foi conduzida utilizando um Mapa Auto-Organizável (SOM) para identificar pontos de dados que se desviam significativamente do padrão observado. Com as coordenadas dos pontos no SOM, o centroide do mapa foi calculado. Este centroide é determinado utilizando a mediana das coordenadas x e y de todos os pontos, o que fornece uma medida menos sensível a outliers em comparação com a média. Então, são calculadas as distâncias dos pontos para o centroide do mapa. Pontos que apresentaram distâncias significativamente maiores em relação ao centroide foram identificados como anômalos. Estes pontos fora do cluster principal sugerem comportamentos ou características discrepantes dos dados normais, destacando-se por estarem afastados do padrão usual.'
+        c = canvas.Canvas(name)
+        c, h = self.gerarSecao(c,'t','Seção 6 - Anomalias',65)
+        c, h = self.gerarSecao(c,'p',texto1,h)
+        c, h = self.gerarSecaoTabela(c,h,anomalias_df.to_numpy(), anomalias_df.columns.tolist())
+        c, h = self.gerarLegenda(c,'Tabela 6 - Tabela de anomalias', h+5)
+        h = h+30
+        c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
+        c.saveState()
+        c.showPage()
+        c.save()
+
+        # Remove coluna de índice do DataFrame
+        anomalias_df = anomalias_df.drop([' '], axis=1)
+
         print("#"*80)
         print("Escrevendo", name)
         print(self.porcentagem)
         print(anomalias_df)
         print("#"*80)
+
+    def gerarSecao(self,c,tipo,paragrafo,h):
+        page_w, page_h = letter
+        if(tipo=='p'):
+            style_paragrafo = ParagraphStyle("paragrafo", fontName="Helvetica", fontSize=12, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='t'):
+            style_paragrafo = ParagraphStyle("titulo", fontName="Helvetica-Bold", fontSize=16, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='s'):
+            style_paragrafo = ParagraphStyle("subtitulo", fontName="Helvetica-Bold", fontSize=14, alignment=4, leading=18, encoding="utf-8")
+        elif(tipo=='c'):
+            style_paragrafo = ParagraphStyle("caption", fontName="Helvetica-Bold",backColor='#d3d3d3' , textColor='black', fontSize=18, alignment=TA_CENTER, leading=25, borderColor='gray', borderWidth=2, borderPadding=5, encoding="utf-8")
+        message_paragrafo = Paragraph(paragrafo, style_paragrafo)
+        w_paragrafo, h_paragrafo = message_paragrafo.wrap(page_w -2*inch, page_h)
+        message_paragrafo.drawOn(c, inch, page_h - h- h_paragrafo)
+        return (c, h+h_paragrafo+30) if tipo != 'c' else (c, h+h_paragrafo+12)
+    
+    def gerarLegenda(self,c,paragrafo,h):
+        page_w, page_h = letter
+        style_paragrafo = ParagraphStyle("paragrafo", fontName="Helvetica-Oblique", fontSize=10, alignment=4, leading=18, encoding="utf-8", textColor = 'blue')
+        message_paragrafo = Paragraph(paragrafo, style_paragrafo)
+        w_paragrafo, h_paragrafo = message_paragrafo.wrap(page_w -2*inch, page_h)
+        message_paragrafo.drawOn(c, inch, page_h - h- h_paragrafo)
+        return c, h+h_paragrafo+20
+
+    def gerarTabela(self,data,columns):
+        data = [columns] + data
+
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('WORDWRAP', (0, 0), (-1, -1), 'CHAR'),
+        ])
+
+        col_widths = [26,70,28,28,32,48,48,100,105]
+
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(style)
+        return table
+
+    def gerarTabelaPdf(self,c,data,h,start,columns):
+        page_w, page_h = letter
+        if(len(data)>start):
+            data2 = []
+            end = 0
+            for i in range(len(data)-start+1):
+                table = self.gerarTabela(data2,columns)
+                w_paragrafo, h_paragrafo = table.wrapOn(c, 0, 0)
+                if(page_h - h- h_paragrafo< inch):
+                    end = i
+                    break
+
+                if(i<len(data)-start):
+                    data2+= [data[i+start]]
+            table.drawOn(c, inch, page_h - h- h_paragrafo)
+            return c, h_paragrafo+h, start+end
+        else:
+            return c, h, start
+
+    def quebraPagina(self,c, h, tamanho):
+        page_w, page_h = letter
+        if(h>tamanho):
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
+            c.saveState()
+            c.showPage()
+            h=65
+        return c, h
+
+    def gerarSecaoTabela(self,c,h,dados,columns):
+        start = 0
+        start2 = 0
+        while(True):
+            c, h, start = self.gerarTabelaPdf(c,dados,h,start,columns)
+            if(start==start2):
+                break
+            else:
+                c, h = self.quebraPagina(c, h, 0)
+                start2=start
+        return c, h
+
+    def insert_newlines(self,text, every=40):
+        lines = []
+        while len(text) > every:
+            split_index = text.rfind(' ', 0, every)
+            if split_index == -1:
+                split_index = every
+            lines.append(text[:split_index].strip())
+            text = text[split_index:].strip()
+        lines.append(text)
+        return '\n\n'.join(lines)
+
+    def dividirlinhas(self,data, every):
+        if(len(data)>every):
+            data = self.insert_newlines(data, every=every)
+        return data
+
+    def ajustarDataFrames(self,df, colunas, numCar):
+        for coluna in colunas:
+            df[coluna] = [self.dividirlinhas(str(linha), numCar) for linha in df[coluna]]
+        return df
 
 class S2P9_TabelaRegioes():
     def __init__(self):
@@ -705,7 +844,7 @@ class S2P9_TabelaRegioes():
         c, h = self.gerarSecaoTabela(c,h,tabela_regioes.to_numpy())
         c, h = self.gerarLegenda(c,'Tabela 7 - Municípios e Suas Mesorregiões e Microrregiões', h+5)
         h = h+30
-        c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+        c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
         c.saveState()
         c.showPage()
         c.save()
@@ -742,7 +881,7 @@ class S2P9_TabelaRegioes():
         return c, h+h_paragrafo+20
 
     def gerarTabela(self,data):
-        data = [['Índice','Nome Município','Mesorregião', 'Microrregião']]+data
+        data = [['Índice','Nome Município','Mesorregião', 'Microrregião']] + data
 
         style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -785,7 +924,7 @@ class S2P9_TabelaRegioes():
     def quebraPagina(self,c, h, tamanho):
         page_w, page_h = letter
         if(h>tamanho):
-            c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
             c.saveState()
             c.showPage()
             h=65
@@ -838,45 +977,73 @@ class S3P1_RelatorioIndividual():
 
             # Constroi e gera o PDF
             page_w, page_h = letter
-            c = canvas.Canvas(name)
-
+            pdf1 = name.replace(".pdf", "1.pdf")
+            c = canvas.Canvas(pdf1)
             c, h = self.gerarSecao(c,'t1',municipio,65)
             c, h = self.gerarSecao(c,'c',f"Resultado da Influência dos Fatores no(a) {data['output']}",h+30)
             c, h = self.gerarSecaoTabela(c,h,df1.to_numpy(), df1.columns.tolist(),1)
             c, h = self.gerarLegenda(c,f"Tabela 1 - Impacto dos Fatores na Taxa de {data['output']}", h+5)
-            posicao, h_last = 61 + df1.shape[0] * 14, h # Calcula +/- a posição da tabela no pdf
-            c, h = self.quebraPagina(c, posicao, h, 98) # Tenta evitar que a tabela 2 seja quebrada ao meio
-            pagina_quebrada = True if h < h_last else False
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
+            c.saveState()
+            c.showPage()
+            c.save()
 
-            c, h = self.gerarSecao(c,'c',"Fatores que Mais Influenciaram",h+30)
+            page_w, page_h = letter
+            pdf2 = name.replace(".pdf", "2.pdf")
+            c = canvas.Canvas(pdf2)
+            c, h = self.gerarSecao(c,'c',"Fatores que Mais Influenciaram",65)
             c, h = self.gerarSecaoTabela(c,h,df2.to_numpy(), df2.columns.tolist(),2)
             c, h = self.gerarLegenda(c,"Tabela 2 - Principais Fatores de Influência", h+5)
-            posicao, h_last = (posicao + 14 + df2.shape[0] * 14, h) if not pagina_quebrada else (34 + df2.shape[0] * 14, h)
-            c, h = self.quebraPagina(c, posicao, h, 165) # Tenta evitar que a tabela 3 seja quebrada ao meio
-            pagina_quebrada = True if h < h_last else False
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
+            c.saveState()
+            c.showPage()
+            c.save()
 
-            c, h = self.gerarSecao(c,'c',f"{data['output']}",h+30)
+            page_w, page_h = letter
+            pdf3 = name.replace(".pdf", "3.pdf")
+            c = canvas.Canvas(pdf3)
+            c, h = self.gerarSecao(c,'c',f"{data['output']}",320)
             c, h = self.gerarSecaoTabela(c,h,df3.to_numpy(), df3.columns.tolist(),3)
             c, h = self.gerarLegenda(c,f"Tabela 3 - Comparação do(a) {data['output']} entre o Município e o seu Grupo", h+5)
-            posicao, h_last = (posicao + 14 + df3.shape[0] * 14, h) if not pagina_quebrada else (34 + df3.shape[0] * 14, h)
-            c, h = self.quebraPagina(c, posicao, h, 103) # Tenta evitar que a tabela 4 seja quebrada ao meio
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
+            c.saveState()
+            c.showPage()
+            c.save()
 
-            c, h = self.gerarSecao(c,'c',"Vizinhos Mais Próximos",h+30)
+            page_w, page_h = letter
+            pdf4 = name.replace(".pdf", "4.pdf")
+            c = canvas.Canvas(pdf4)
+            height = 320 if df4.shape[0] == 1 else 270 if df4.shape[0] == 2 else 220 if df4.shape[0] >= 3 and df4.shape[0] <= 6 else 130
+            c, h = self.gerarSecao(c,'c',"Vizinhos Mais Próximos",height)
             c, h = self.gerarSecaoTabela(c,h,df4.to_numpy(), df4.columns.tolist(),4)
             c, h = self.gerarSecao(c,'c1',"OBS: A PROXIMIDADE ENVOLVE O CONJUNTO TOTAL DOS FATORES E SUAS SEMELHANÇAS, AO INVÉS DE QUESTÕES GEOGRÁFICAS.",h+8)
             c, h = self.gerarLegenda(c,f"Tabela 4 - Municípios Mais Semelhantes a {municipio}", h+5)
             h = h+30
-
-            c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
             c.saveState()
             c.showPage()
             c.save()
+
+            self.merge_pdfs([pdf1, pdf2, pdf3, pdf4], name)
+            for f in filter(lambda a : os.path.exists(a) and a != 'required_files//capa.pdf', [pdf1, pdf2, pdf3, pdf4]):
+                os.remove(f)
 
             print(municipio)
             print("#"*80)
             print("Escrevendo", name)
             print(data)
             print("#"*80)
+
+    def merge_pdfs(self, pdf_list: 'list[str]', output_path: str):
+        pdf_writer = PdfWriter()
+
+        for pdf in filter(lambda a : os.path.exists(a), pdf_list):
+            pdf_reader = PdfReader(pdf)
+            for page in range(len(pdf_reader.pages)):
+                pdf_writer.add_page(pdf_reader.pages[page])
+
+        with open(output_path, 'wb') as output_pdf:
+            pdf_writer.write(output_pdf)
 
     def gerarSecao(self,c,tipo,paragrafo,h):
         page_w, page_h = letter
@@ -906,7 +1073,7 @@ class S3P1_RelatorioIndividual():
         message_paragrafo.drawOn(c, inch, page_h - h- h_paragrafo)
         return c, h+h_paragrafo+20
 
-    def gerarTabela(self,data, columns, j):
+    def gerarTabela(self,data,columns,j):
         data = [columns]+data
 
         style = TableStyle([
@@ -954,7 +1121,7 @@ class S3P1_RelatorioIndividual():
     def quebraPagina(self,c, posicao, h, tamanho):
         page_w, page_h = letter
         if(posicao % 200 > tamanho):
-            c.drawImage('required_files/cabecalho.jpeg', inch-8, page_h-50,page_w-inch-52,50)
+            c.drawImage(os.path.join('required_files/cabecalho.jpeg'), inch-8, page_h-50,page_w-inch-52,50)
             c.saveState()
             c.showPage()
             h=65
@@ -992,16 +1159,16 @@ class S3P1_RelatorioIndividual():
         for coluna in colunas:
             df[coluna] = [self.dividirlinhas(str(linha), numCar) for linha in df[coluna]]
         return df
-
+    
     def gerarDataFrames(self, shap_columns, shape_results, indices_maiores_valores, indices_menores_valores, data):
         df1 = pd.DataFrame(data={'Índice'       : range(1, len(shap_columns) + 1),
-                                 'Fatores'      : shap_columns,
+                                 'Fatores'      : ['...'.join(x.rsplit(x[58:] or '...', 1)) for x in shap_columns],
                                  'Valor'        : [f"{x:.2f}" for x in shape_results['data']],
                                  'Influência'   : [f"{x:.3f}" for x in shape_results['values']]})
         
-        df2 = pd.DataFrame(data={'Positivamente': list(reversed([shap_columns[chave] for chave, valor in indices_maiores_valores.items()])) + ['---'] * (3 - len(indices_maiores_valores)),
+        df2 = pd.DataFrame(data={'Positivamente': list(reversed(['...'.join(shap_columns[chave].rsplit(shap_columns[chave][152:] or '...', 1)) for chave, valor in indices_maiores_valores.items()])) + ['---'] * (3 - len(indices_maiores_valores)),
                                  '+'            : list(reversed([f"{valor:.3f}" for chave, valor in indices_maiores_valores.items()])) + ['---'] * (3 - len(indices_maiores_valores)),
-                                 'Negativamente': list(reversed([shap_columns[chave] for chave, valor in indices_menores_valores.items()])) + ['---'] * (3 - len(indices_menores_valores)),
+                                 'Negativamente': list(reversed(['...'.join(shap_columns[chave].rsplit(shap_columns[chave][152:] or '...', 1)) for chave, valor in indices_menores_valores.items()])) + ['---'] * (3 - len(indices_menores_valores)),
                                  '-'            : list(reversed([f"{valor:.3f}" for chave, valor in indices_menores_valores.items()])) + ['---'] * (3 - len(indices_menores_valores))})
         
         df3 = pd.DataFrame(data={f"Grupo {data['grupo']}": [f"{data['nota_media_grupo']*100:.2f} %"],
