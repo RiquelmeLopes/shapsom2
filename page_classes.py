@@ -8,7 +8,8 @@ from reportlab import platypus
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
 import os
-
+import numpy as np
+import matplotlib.pyplot as plt
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.enums import TA_CENTER
@@ -368,11 +369,86 @@ class S2P3_Heatmap():
         # Esses são os dataframes com média e desvio padrão, tem que transformar em imagem e partir se for muito grande
         avg: pd.DataFrame = deepcopy(self.avg_df)
         std: pd.DataFrame = deepcopy(self.std_df)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(avg)
-        print(std)
-        print("#"*80)
+
+        if avg is not None and std is not None:
+            avg_heatmap_path = os.path.join('tempfiles', "heatmap_avg.png")
+            std_heatmap_path = os.path.join('tempfiles', "heatmap_std.png")
+            combined_image_path = os.path.join('tempfiles', "combined_heatmap.png")
+
+            # Gera os heatmaps e salva na pasta tempfiles
+            self.generate_heatmap(avg, avg_heatmap_path, "Média", 'YlOrRd')
+            self.generate_heatmap(std, std_heatmap_path, "Desvio Padrão", 'gray')
+            
+            self.combine_images_horizontally(avg_heatmap_path, std_heatmap_path, combined_image_path)
+            self.generate_pdf(name, combined_image_path)
+
+            # Exclui as imagens após gerar o PDF
+            if os.path.exists(avg_heatmap_path):
+                os.remove(avg_heatmap_path)
+            if os.path.exists(std_heatmap_path):
+                os.remove(std_heatmap_path)
+
+    def generate_heatmap(self, df, filename, title, cmap):
+        # Garante que apenas colunas numéricas sejam usadas no heatmap
+        df_numeric = df.select_dtypes(include=[float, int])
+
+        # Configuração da figura
+        fig, ax = plt.subplots(figsize=(16, 12))
+
+        # Criação do heatmap diretamente com matplotlib
+        cax = ax.matshow(df_numeric, cmap=cmap)
+
+        # Configurações do gráfico
+        fig.colorbar(cax)
+        ax.set_title(title, pad=20)
+        
+        num_rows, num_cols = df_numeric.shape
+        ax.set_xticks(range(num_cols))
+        ax.set_yticks(range(num_rows))
+        ax.set_xticklabels(range(1, num_cols + 1)) 
+        ax.set_yticklabels(range(1, num_rows + 1))  
+
+        # Ajusta o layout e salva a figura
+        plt.tight_layout()
+        plt.savefig(filename)
+        plt.close()
+
+    def combine_images_horizontally(self, img1_path, img2_path, output_path):
+        # Abre as duas imagens
+        img1 = Image.open(img1_path)
+        img2 = Image.open(img2_path)
+
+        # Calcula a altura máxima e a largura combinada
+        max_height = max(img1.height, img2.height)
+        total_width = img1.width + img2.width
+
+        # Cria uma nova imagem com o tamanho combinado
+        combined_img = Image.new("RGB", (total_width, max_height))
+
+        # Cola as imagens lado a lado
+        combined_img.paste(img1, (0, 0))
+        combined_img.paste(img2, (img1.width, 0))
+
+        # Salva a imagem combinada
+        combined_img.save(output_path)
+
+    def generate_pdf(self, pdf_name, combined_image_path):
+        # Define margens mínimas para maximizar o espaço útil
+        doc = SimpleDocTemplate(pdf_name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+
+        # Adiciona o cabeçalho no topo absoluto da página
+        header_path = os.path.join("required_files", "cabecalho.jpeg")
+        if os.path.exists(header_path):
+            elements.append(ReportlabImage(header_path, width=500, height=100))  # Tamanho ajustado em pixels
+            elements.append(Spacer(1, 12))
+
+        # Adiciona a imagem combinada ao PDF
+        combined_image = ReportlabImage(combined_image_path, width=500, height=700)  # Define o tamanho em pixels
+        elements.append(combined_image)
+
+        # Gera o PDF
+        doc.build(elements)
 
 class S2P4_Shap():
     def __init__(self):
@@ -506,16 +582,91 @@ class S2P7_HeatmapFiltro():
         self.finished_selection = False
     
     def write_page(self, name: str="heatmap_filtro.pdf"):
-        # Esses são os dataframes com média e desvio padrão, tem que transformar em imagem e partir se for muito grande
-        # Obs: Os dois já estão filtrados para facilitar, é só fazer a imagem aqui também
         avg: pd.DataFrame = deepcopy(self.avg_df)
         std: pd.DataFrame = deepcopy(self.std_df)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(self.filtro_min, self.filtro_max)
-        print(avg)
-        print(std)
-        print("#"*80)
+
+        if avg is not None and std is not None:
+
+            std_heatmap_path = os.path.join('tempfiles', "heatmap_filtro_std.png")
+            avg_heatmap_path = os.path.join('tempfiles', "heatmap_filtro_avg.png")
+
+            # Gera os heatmaps e salva na pasta tempfiles
+            self.generate_heatmap(avg, avg_heatmap_path, "Média Filtrada", 'YlOrRd')
+            self.generate_heatmap(std, std_heatmap_path, "Desvio Padrão Filtrado",'gray')
+            combined_image_path = os.path.join('tempfiles', "combined_heatmap_filtro.png")
+
+            # Gera o PDF com os DataFrames e heatmaps
+            self.combine_images_horizontally(avg_heatmap_path, std_heatmap_path, combined_image_path)
+            self.generate_pdf(name, combined_image_path)
+
+            # Exclui as imagens após gerar o PDF
+            if os.path.exists(avg_heatmap_path):
+                os.remove(avg_heatmap_path)
+            if os.path.exists(std_heatmap_path):
+                os.remove(std_heatmap_path)
+
+    def generate_heatmap(self, df, filename, title, cmap):
+        # Garante que apenas colunas numéricas sejam usadas no heatmap
+        df_numeric = df.select_dtypes(include=[float, int])
+
+        # Configuração da figura
+        fig, ax = plt.subplots(figsize=(16, 12))
+
+        # Criação do heatmap diretamente com matplotlib
+        cax = ax.matshow(df_numeric, cmap=cmap)        
+
+        # Configurações do gráfico
+        fig.colorbar(cax)
+        ax.set_title(title, pad=20)
+
+        num_rows, num_cols = df_numeric.shape
+        ax.set_xticks(range(num_cols))
+        ax.set_yticks(range(num_rows))
+        ax.set_xticklabels(range(1, num_cols + 1)) 
+        ax.set_yticklabels(range(1, num_rows + 1)) 
+
+        # Ajusta o layout e salva a figura
+        plt.tight_layout()
+        plt.savefig(filename, dpi=300)
+        plt.close()
+
+    def combine_images_horizontally(self, img1_path, img2_path, output_path):
+        # Abre as duas imagens
+        img1 = Image.open(img1_path)
+        img2 = Image.open(img2_path)
+
+        # Calcula a altura máxima e a largura combinada
+        max_height = max(img1.height, img2.height)
+        total_width = img1.width + img2.width
+
+        # Cria uma nova imagem com o tamanho combinado
+        combined_img = Image.new("RGB", (total_width, max_height))
+
+        # Cola as imagens lado a lado
+        combined_img.paste(img1, (0, 0))
+        combined_img.paste(img2, (img1.width, 0))
+
+        # Salva a imagem combinada
+        combined_img.save(output_path)
+
+    def generate_pdf(self, pdf_name, combined_image_path):
+        # Define margens mínimas para maximizar o espaço útil
+        doc = SimpleDocTemplate(pdf_name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+
+        # Adiciona o cabeçalho no topo absoluto da página
+        header_path = os.path.join("required_files", "cabecalho.jpeg")
+        if os.path.exists(header_path):
+            elements.append(ReportlabImage(header_path, width=500, height=100))  # Tamanho ajustado em pixels
+            elements.append(Spacer(1, 12))
+
+        # Adiciona a imagem combinada ao PDF
+        combined_image = ReportlabImage(combined_image_path, width=500, height=700)  # Define o tamanho em pixels
+        elements.append(combined_image)
+
+        # Gera o PDF
+        doc.build(elements)
+
 
 class S2P8_Anomalias():
     def __init__(self):

@@ -65,9 +65,9 @@ def generic_page_top(subheader: str, progress: float):
     st.set_page_config(initial_sidebar_state="collapsed", layout="wide")
     st.markdown("""<style>[data-testid="collapsedControl"] {display: none}</style>""", unsafe_allow_html=True)
     st.image(Image.open(os.path.join("required_files", "tce_logo.png")), use_column_width=True)
-    st.progress(progress)
     st.title("Sistema de Apoio a Auditorias do Tribunal de Contas do Estado 📊")
-    st.subheader(subheader)
+    st.progress(progress)    
+    st.title(subheader)
     st.divider()
 
 # Header for the report pages
