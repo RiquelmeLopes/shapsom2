@@ -24,7 +24,7 @@ st.markdown('Atente-se a como sua planilha está organizada! Tente deixá-la no 
 
 # Criar o DataFrame
 csv_buffer = BytesIO()
-MODELO_DF.to_csv(csv_buffer, index=False)
+MODELO_DF.to_csv(csv_buffer, encoding='latin1', index=False)
 csv_buffer.seek(0)
 
 # Salvar em buffer XLSX

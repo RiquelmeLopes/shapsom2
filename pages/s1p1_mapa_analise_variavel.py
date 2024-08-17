@@ -22,5 +22,6 @@ with st.spinner('Gerando mapa...'):
         st.session_state["mapa exploratorio"].map = deepcopy(map)
         st.session_state["mapa exploratorio"].img_path = img
     components.html(st.session_state["mapa exploratorio"].map._repr_html_(), height=600)
+    st.info(f'Figura 1 - Mapa de Análise da Variável Alvo')
 
 report_page_bottom("mapa exploratorio", "pages/s0p1_repetir_planilha.py", "pages/s1p2_analise_estatistica.py")

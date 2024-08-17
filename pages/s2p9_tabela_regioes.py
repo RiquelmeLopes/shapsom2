@@ -16,6 +16,7 @@ with st.spinner("Carregando tabela..."):
         df.index = pd.RangeIndex(start=1, stop=len(df)+1, step=1)
         st.session_state["tabela regioes"].df = deepcopy(df)
     st.dataframe(st.session_state["tabela regioes"].df, hide_index=False, use_container_width=True)
+    st.info('Tabela 7.1 - Lista de Mesorregiões e Microrregiões')
 
 if st.session_state["base reader"].output_columns:
     report_page_bottom("tabela regioes", "pages/s2p8_anomalias.py", "pages/s2report.py")

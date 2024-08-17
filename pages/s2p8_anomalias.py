@@ -31,6 +31,7 @@ st.write("""A análise de anomalias foi conduzida utilizando um Mapa Auto-Organi
           do padrão usual.""")
 
 st.altair_chart(st.session_state["mapa som"].map, use_container_width=True)
+st.info('Figura 6.1 - Mapa SOM')
 
 with st.form("anomalia_form"):
     porcentagem = st.slider("Defina a porcentagem das anomalias", min_value=0, max_value=100, value=st.session_state["porcentagem"])
@@ -97,5 +98,6 @@ with st.spinner("Identificando anomalias..."):
     df = deepcopy(st.session_state["anomalias"].df).drop(['x', "y"], axis=1)
     df = df[:int(len(df) * st.session_state["anomalias"].porcentagem / 100)]
     st.dataframe(df, use_container_width=True)
+    st.info('Tabela 6.1 - Resultados de Anomalias')
 
 report_page_bottom("anomalias", "pages/s2p7_heatmap_filtro.py", "pages/s2p9_tabela_regioes.py")

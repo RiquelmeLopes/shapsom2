@@ -28,7 +28,7 @@ with st.spinner("Gerando árvore..."):
         feature_importances = pd.DataFrame({"Variáveis": x.columns, "Importância": reg.feature_importances_}).sort_values("Importância", ascending=False)
 
         st.dataframe(feature_importances, use_container_width=True)
-        st.info(f"Tabela 3.2.1 - Importância das Variáveis no Modelo de Árvore de Decisão")
+        st.info(f"Tabela 3.2.1 - Importância dos Fatores no Modelo de Árvore de Decisão")
 
         rand_imgname = os.path.join("tempfiles", f"{generate_random_string(10)}.png")
         st.session_state["arvore"].img_path = rand_imgname

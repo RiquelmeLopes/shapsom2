@@ -40,7 +40,7 @@ with st.form("filter_form"):
     if st.form_submit_button("**Aplicar intervalo**"):
         S2P7_update_parameters(filtro_min, filtro_max)
 
-avg, std = display_heatmaps(st.session_state["heatmap filtro"].filtro_min / 100, st.session_state["heatmap filtro"].filtro_max / 100)
+avg, std = display_heatmaps(st.session_state["heatmap filtro"].filtro_min / 100, st.session_state["heatmap filtro"].filtro_max / 100, numero_secao=5)
 st.session_state["heatmap filtro"].avg_df = deepcopy(avg)
 st.session_state["heatmap filtro"].std_df = deepcopy(std)
 report_page_bottom("heatmap filtro", "pages/s2p6_analise_grupos.py", "pages/s2p8_anomalias.py")

@@ -176,6 +176,7 @@ class S2P1_DescricaoArquivo():
         page_w, page_h = letter
         c = canvas.Canvas(name)
         c, h = self.gerarSecao(c,'t','1. Descrição do arquivo de entrada',65)
+        c, h = self.gerarSecao(c,'p','Essa seção tem como objetivo detalhar as especificações e requisitos dos dados necessários para o correto funcionamento do sistema.',65)
         c, h = self.gerarSecao(c,'s','1.1 Dados de Treinamento',h)
         c, h = self.gerarSecao(c,'p',descricao,h)
         c, h = self.gerarSecao(c,'p',decricao2,h-28)
@@ -185,12 +186,6 @@ class S2P1_DescricaoArquivo():
         c.saveState()
         c.showPage()
         c.save()
-
-        print("#"*80)
-        print("Escrevendo", name)
-        print(descricao)
-        print(df)
-        print("#"*80)
 
     def gerarTabela(self, data):
         if(self.has_descriptions):

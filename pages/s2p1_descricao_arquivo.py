@@ -19,6 +19,7 @@ descricao = f'''Este relatório foi elaborado com base nos dados presentes no ar
              ou aquelas que foram ocultadas durante a criação do mapa não foram incluídas na análise.'''
 
 st.subheader('Seção 1 - Descrição do arquivo de entrada')
+st.markdown('Essa seção tem como objetivo detalhar as especificações e requisitos dos dados necessários para o correto funcionamento do sistema.')
 st.subheader('Seção 1.1 - Dicionário de Dados')
 st.markdown(descricao)
 st.markdown('''Um dicionário de dados é uma tabela que contém informações sobre os dados disponibilizados. As
@@ -60,6 +61,7 @@ dict_df = pd.DataFrame(data=dict_data, columns=colunas)
 st.session_state["descricao arquivo"].df = deepcopy(dict_df)
 st.session_state["descricao arquivo"].descricao = descricao
 st.dataframe(dict_df, hide_index=True, use_container_width=True)
+st.info('Tabela 1.1.1 - Dicionário de Dados')
 
 if st.session_state["base reader"].output_columns:
     report_page_bottom("descricao arquivo", "pages/s1report.py", "pages/s2p2_mapa_som.py")

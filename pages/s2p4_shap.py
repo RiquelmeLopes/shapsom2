@@ -26,4 +26,5 @@ with st.spinner("Calculando SHAP..."):
     shap_df = deepcopy(st.session_state["shap"].df)
     shap_df = shap_df.style.applymap(lambda val : f'color: {"blue" if val > 0 else ("red" if val < 0 else "")}', subset=shap_df.columns[1:])
     st.dataframe(shap_df, use_container_width=True)
+    st.info('Tabela 3.1.1 - Influência dos fatores em cada grupo')
 report_page_bottom("shap", "pages/s2p3_heatmap.py", "pages/s2p5_arvore.py")

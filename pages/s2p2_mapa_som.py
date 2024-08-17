@@ -56,7 +56,6 @@ def S2P2_update_parameters(sigma, size, lr, epochs, cluster_distance, topology, 
     return changed
 
 report_page_top("mapa som", S2P2_MapaSom, "2. Análise por Agrupamentos", 6/PAGE_COUNT, set_default_parameters=S2P2_set_default_parameters, load_parameters=S2P2_load_parameters)
-st.subheader('Seção 1 - Descrição do arquivo de entrada')
 st.subheader('Seção 1.2 - Mapa SOM')
 st.markdown('''Um Mapa SOM, ou Mapa Auto-Organizável, é uma técnica de aprendizado não supervisionado usada para
              visualizar e organizar dados complexos em uma representação bidimensional.''')
@@ -109,6 +108,8 @@ else:
     som_bar.progress(1.0, "Mapa SOM")
     st.altair_chart(st.session_state["mapa som"].map, use_container_width=True)
 
+st.info('Figura 1.2.1 - Mapa SOM')
+st.divider()
 st.markdown('Caso deseje modificar os parâmetros da criação do mapa SOM acima, clique para modificar os parâmetros.')
 with st.expander("**Modificar Parâmetros do SOM**", expanded=False):
     with st.form("som_form"):

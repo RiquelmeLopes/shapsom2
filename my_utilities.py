@@ -257,7 +257,7 @@ def make_map(df: pd.DataFrame, name_column: str, output_column: str, color: str=
         
     return map, rand_imgname
 
-def display_heatmaps(filtro_min=0.0, filtro_max=1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def display_heatmaps(filtro_min=0.0, filtro_max=1.0, numero_secao=2) -> Tuple[pd.DataFrame, pd.DataFrame]:
     def generate_heatmap(df: pd.DataFrame, name_column: str, variable_columns: 'list[str]', cmap):
         fig_height = int((st.session_state["page width"] / 2) * len(df) / len(df.columns))
         col_height = len(max(variable_columns, key=len)) * 4
@@ -278,20 +278,20 @@ def display_heatmaps(filtro_min=0.0, filtro_max=1.0) -> Tuple[pd.DataFrame, pd.D
 
         with col1:
             st.dataframe(crunched_average)
-            st.info(f"**Tabela 2.1 - Média**")
+            st.info(f"**Tabela {numero_secao}.1 - Média**")
             heatmap1 = generate_heatmap(crunched_average, name_col, num_cols, 'YlOrRd')
             st.plotly_chart(heatmap1, use_container_width=True)
-            st.info(f'Gráfico 2.1 - Mapa de Calor (Heatmap) da Média dos Dados dos Municípios')
+            st.info(f'Gráfico {numero_secao}.1 - Mapa de Calor (Heatmap) da Média dos Dados dos Municípios')
 
         crunched_stdev = deepcopy(st.session_state["base reader"].crunched_database_stdev)
         crunched_stdev = crunched_stdev[crunched_stdev[name_col].isin(municipios_filtrados)]
 
         with col2:
             st.dataframe(crunched_stdev)
-            st.info(f"**Tabela 2.2 - Desvio Padrão**")
+            st.info(f"**Tabela {numero_secao}.2 - Desvio Padrão**")
             heatmap2 = generate_heatmap(crunched_stdev, name_col, num_cols, 'gray')
             st.plotly_chart(heatmap2, use_container_width=True)
-            st.info(f'Gráfico 2.2 - Mapa de Calor (Heatmap) do Desvião Padrão dos Dados dos Municípios')
+            st.info(f'Gráfico {numero_secao}.2 - Mapa de Calor (Heatmap) do Desvião Padrão dos Dados dos Municípios')
     
     return crunched_average, crunched_stdev
 
