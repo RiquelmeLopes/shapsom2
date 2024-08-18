@@ -526,12 +526,84 @@ class S2P5_Arvore():
         self.finished_selection = False
     
     def write_page(self, name: str="arvore.pdf"):
-        # A imagem da árvore
-        img = Image.open(self.img_path)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(img.size)
-        print("#"*80)
+        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+        #title_style = ParagraphStyle(name='CenterTitle', alignment=TA_CENTER, fontSize=14, spaceAfter=20)
+        title_style = ParagraphStyle(name='CenterTitle', fontName="Helvetica-Bold", fontSize=16, alignment=4, leading=16, encoding="utf-8")
+        paragraph_style = ParagraphStyle(name='CenterParagraph',fontName="Helvetica", fontSize=12, alignment=4, leading=16, encoding="utf-8", leftIndent=0, rightIndent=0)
+        table_caption_style = ParagraphStyle(name="Subtitulo", fontName="Helvetica-Oblique", fontSize=10, alignment=4, leading=18, encoding="utf-8", textColor = 'blue')
+
+        # Add the initial text
+        intro_text = '''
+        Nesta seção, apresentamos os grupos identificados e as variáveis que mais influenciaram na formação desses grupos. Um "agrupamento" reúne dados que são mais semelhantes em termos de suas características globais. Esses grupos são utilizados na aplicação de IA através de bases de dados (tabelas) fornecidas pela área usuária para o processamento com Redes Neurais Artificiais. "Agrupamento" é o processo de reunir, por exemplo, municípios, com base em suas semelhanças, visando realizar triagens para guiar auditorias.
+        '''
+        elements.append(Paragraph("Seção 3.1 - Análise de agrupamentos com SHAP", title_style))
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(intro_text, paragraph_style))
+        elements.append(Spacer(1, 12))
+
+        shap_df = deepcopy(st.session_state["shap"].df)
+
+        # Largura total da tabela
+        total_width = 480
+        first_col_width = total_width * 0.50
+        remaining_width = total_width - first_col_width
+
+
+        # Divide os dados em subgrupos de no máximo 7 colunas
+        columns = shap_df.columns.tolist()
+        num_cols = len(columns)
+
+        i = 0
+        for start_col in range(1, num_cols, 6):
+            i += 1
+            end_col = min(start_col + 6, num_cols)
+            sub_columns = [columns[0]] + columns[start_col:end_col]
+            
+            sub_table_data = [[str(row[0])] + [str(val) for val in row[start_col:end_col]] for row in shap_df.values]
+            sub_table_data.insert(0, sub_columns)
+            
+            col_widths = [first_col_width] + [remaining_width / (len(sub_columns) - 1)] * (len(sub_columns) - 1)
+
+            for row_idx in range(1, len(sub_table_data)):
+                if (len(sub_table_data[row_idx][0]) > 45):
+                    sub_table_data[row_idx][0] = sub_table_data[row_idx][0][:45] +'...'
+
+                for col_idx in range(1, len(sub_table_data[row_idx])):
+                    print(sub_table_data[row_idx][col_idx])
+                    sub_table_data[row_idx][col_idx] = f"{float(sub_table_data[row_idx][col_idx]):.3f}"
+
+
+            table = Table(sub_table_data, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('WORDWRAP', (0, 0), (-1, -1), 'WORD'),
+            ]))
+            
+            for row_idx in range(1, len(sub_table_data)):
+                for col_idx in range(1, len(sub_table_data[row_idx])):
+                    value = float(sub_table_data[row_idx][col_idx])
+                    if value > 0:
+                        table.setStyle(TableStyle([('TEXTCOLOR', (col_idx, row_idx), (col_idx, row_idx), colors.blue)]))
+                    elif value < 0:
+                        table.setStyle(TableStyle([('TEXTCOLOR', (col_idx, row_idx), (col_idx, row_idx), colors.red)]))
+            
+            elements.append(table)
+            elements.append(Spacer(1, 6))
+            elements.append(Paragraph(f"Tabela 3.{i} - Resultados do SHAP", table_caption_style))
+            elements.append(Spacer(1, 24))
+
+        # Build PDF
+        doc.build(elements)
 
 class S2P6_AnaliseGrupos():
     def __init__(self):
