@@ -24,8 +24,11 @@ import string
 from threading import Lock
 import time
 from pypdf import PdfReader, PdfWriter
+import zipfile
+from datetime import datetime
 
 globals()["lock"] = Lock()
+data_atual = datetime.now()
 
 generate_random_string = lambda length: ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
@@ -502,7 +505,7 @@ def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names:
                 st.download_button(
                     label="Baixar relatório",
                     data=pdf_file,
-                    file_name='Relatorio_Grupos_Final.pdf',
+                    file_name=f'{title}_{data_atual}.pdf',
                     mime='application/pdf'
                 )
     except:
@@ -525,7 +528,7 @@ def generate_individual_reports(title: str, progress: float, page_before: str, p
             report_bar = st.progress(0.0)
             pdf_names = []
             for i, municipio in enumerate(list_selected_labels):
-                rand_pdf = os.path.join("tempfiles", f"{generate_random_string(10)}.pdf")
+                rand_pdf = os.path.join("tempfiles", f"{municipio}.pdf")
                 report_bar.progress(i / len(list_selected_labels), f"Gerando relatório de {municipio}...")
                 with globals()["lock"]:
                     st.session_state["relatorio individual"].write_page(municipio, rand_pdf)
@@ -533,20 +536,20 @@ def generate_individual_reports(title: str, progress: float, page_before: str, p
                 pdf_names.append(rand_pdf)
             
             with globals()["lock"]:
-                output_file = f"tempfiles//{generate_random_string(10)}.pdf"
-                pdf_names = ['required_files//capa.pdf'] + pdf_names
-                merge_pdfs(pdf_names, output_file)
-                for f in filter(lambda a : os.path.exists(a) and a != 'required_files//capa.pdf', pdf_names):
-                    os.remove(f)
+                zip_file_path = os.path.join("tempfiles", f"{generate_random_string(10)}.zip")
+            with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+                for pdf_file in pdf_names:
+                    zipf.write(pdf_file, os.path.basename(pdf_file))  # Adiciona o PDF ao arquivo ZIP
+                    os.remove(pdf_file)  # Remove o PDF individual após adicioná-lo ao ZIP
             report_bar.progress(1.0, f"Relatórios concluídos.")
     try:
-        if output_file and os.path.exists(output_file):        
-            with open(output_file, "rb") as pdf_file:
+        if zip_file_path and os.path.exists(zip_file_path):        
+            with open(zip_file_path, "rb") as zip_file:
                 st.download_button(
-                    label="Baixar relatório",
-                    data=pdf_file,
-                    file_name='Relatorios_Individuais_Final.pdf',
-                    mime='application/pdf'
+                    label="Baixar relatórios Individuais",
+                    data=zip_file,
+                    file_name=f'Relatorios_Individuais_{data_atual}.zip',
+                    mime='application/zip'
                 )
     except:
         pass
