@@ -98,12 +98,15 @@ if file:
         if not st.session_state["base reader"].output_columns:
             st.markdown(":red[Você não adicionou uma variável de saída, algumas das seções não poderão ser geradas.]")
         
-        _, _, _, _, _, _, _, _, col2 = st.columns(9)
-        with col2:
-            if st.button("Avançar", use_container_width=True):
-                st.session_state["base reader"].finished_selection = True
-                generate_crunched_dataframes()
-                if st.session_state["base reader"].output_columns:
-                    st.switch_page("pages/s1p1_mapa_analise_variavel.py")
-                else:
-                    st.switch_page("pages/s2p1_descricao_arquivo.py")
+        if len(st.session_state["base reader"].input_columns) >= 2:
+            _, _, _, _, _, _, _, _, col2 = st.columns(9)
+            with col2:
+                if st.button("Avançar", use_container_width=True):
+                    st.session_state["base reader"].finished_selection = True
+                    generate_crunched_dataframes()
+                    if st.session_state["base reader"].output_columns:
+                        st.switch_page("pages/s1p1_mapa_analise_variavel.py")
+                    else:
+                        st.switch_page("pages/s2p1_descricao_arquivo.py")
+        else:
+            st.markdown(":red[Você precisa selecionar ao menos duas colunas de \"Entradas\" para prosseguir com a análise.]")

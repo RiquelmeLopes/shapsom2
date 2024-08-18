@@ -49,8 +49,8 @@ class S1P1_MapaExploratorio():
         elements = []
         styles = getSampleStyleSheet()
 
-        if os.path.exists('required_files//cabecalho.jpeg'):
-            elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+        if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+            elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
             elements.append(Spacer(1, 18))
 
         # Adiciona a imagem do mapa ao PDF
@@ -74,8 +74,8 @@ class S1P2_AnaliseEstatistica():
         doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
         styles = getSampleStyleSheet()
-        if os.path.exists('required_files//cabecalho.jpeg'):
-            elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+        if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+            elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
             elements.append(Spacer(1, 18))
 
         elements.append(Paragraph("Análise Estatística", styles['Title']))
@@ -111,8 +111,8 @@ class S1P3_GraficoDispersao():
         elements = []
         styles = getSampleStyleSheet()
 
-        if os.path.exists('required_files//cabecalho.jpeg'):
-            elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+        if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+            elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
             elements.append(Spacer(1, 18))
 
         # Adiciona o gráfico de dispersão ao PDF
@@ -337,12 +337,6 @@ class S2P2_MapaSom():
         c.showPage()
         c.save()
 
-
-        print("#"*80)
-        print("Escrevendo", name)
-        print(self.sigma, self.size, self.lr, self.epochs, self.cluster_distance, self.topology, self.output_influences)
-        print("#"*80)
-
     def gerarSecao(self, c,tipo,paragrafo,h):
         page_w, page_h = letter
         if(tipo=='p'):
@@ -445,7 +439,7 @@ class S2P3_Heatmap():
 
         return combined_image_paths
 
-    def generate_pdf(self, pdf_name, combined_image_paths):
+    def generate_pdf(self, pdf_name, combined_image_paths: list):
         doc = SimpleDocTemplate(pdf_name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
 
@@ -505,18 +499,29 @@ class S2P3_Heatmap():
         elements.append(Paragraph(explanation_text4, style_normal))
         elements.append(Spacer(1, 12))
 
-        # Adiciona a primeira imagem e quebra a página
-        elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
-        elements.append(Paragraph(f"<i>Figura 2.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
-        elements.append(PageBreak())
+        def pairwise(lst: list) -> list:
+            pairs = [(lst[i], lst[i + 1]) for i in range(0, len(lst) - 1, 2)]
+            if len(lst) % 2 != 0:
+                pairs.append((lst[-1], None))
+            return pairs
 
-        # Adiciona as imagens seguintes (segunda e terceira) uma embaixo da outra na segunda folha
-        elements.append(ReportlabImage(combined_image_paths[1], width=500, height=250))
-        elements.append(Paragraph(f"<i>Figura 2.2 - Heatmap média e desvio padrão parte 2</i>", style_caption))
-        elements.append(Spacer(1, 12))
-        elements.append(ReportlabImage(combined_image_paths[2], width=500, height=250))
-        elements.append(Paragraph(f"<i>Figura 2.3 - Heatmap média e desvio padrão parte 3</i>", style_caption))
-        elements.append(PageBreak())
+        if combined_image_paths:
+            # Adiciona a primeira imagem e quebra a página
+            elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
+            elements.append(Paragraph(f"<i>Figura 2.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
+            elements.append(PageBreak())
+
+            for idx, (i1, i2) in enumerate(pairwise(combined_image_paths[1:])):
+                # Adiciona o restante das imagens duas por folha
+                fig_idx = (idx+1)*2
+                if i1:
+                    elements.append(ReportlabImage(i1, width=500, height=250))
+                    elements.append(Paragraph(f"<i>Figura 2.{fig_idx} - Heatmap média e desvio padrão parte {fig_idx}</i>", style_caption))
+                    elements.append(Spacer(1, 12))
+                if i2:
+                    elements.append(ReportlabImage(i2, width=500, height=250))
+                    elements.append(Paragraph(f"<i>Figura 2.{fig_idx+1} - Heatmap média e desvio padrão parte {fig_idx+1}</i>", style_caption))
+                    elements.append(PageBreak())
 
         # Gera o PDF
         doc.build(elements)
@@ -578,7 +583,6 @@ class S2P4_Shap():
                     sub_table_data[row_idx][0] = sub_table_data[row_idx][0][:45] +'...'
 
                 for col_idx in range(1, len(sub_table_data[row_idx])):
-                    print(sub_table_data[row_idx][col_idx])
                     sub_table_data[row_idx][col_idx] = f"{float(sub_table_data[row_idx][col_idx]):.3f}"
 
 
@@ -723,8 +727,8 @@ class S2P6_AnaliseGrupos():
         for i, (output_average, municipio_df, shap_df, image_path) in enumerate(list(zip(self.output_averages, self.municipio_dfs, self.shap_dfs, self.image_paths))):
             # Title
             title = f"Grupo {i+1}"
-            if os.path.exists('required_files//cabecalho.jpeg'):
-                elements.append(ReportlabImage('required_files//cabecalho.jpeg', width=500, height=50))
+            if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+                elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
                 elements.append(Spacer(1, 18))
 
             elements.append(Paragraph(title, styles['Title']))
@@ -926,18 +930,29 @@ class S2P7_HeatmapFiltro():
         elements.append(Paragraph(explanation_text, style_normal))
         elements.append(Spacer(1, 12))
 
-        # Adiciona a primeira imagem e quebra a página
-        elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
-        elements.append(Paragraph(f"<i>Figura 5.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
-        elements.append(PageBreak())
+        def pairwise(lst: list) -> list:
+            pairs = [(lst[i], lst[i + 1]) for i in range(0, len(lst) - 1, 2)]
+            if len(lst) % 2 != 0:
+                pairs.append((lst[-1], None))
+            return pairs
 
-        # Adiciona as imagens seguintes (segunda e terceira) uma embaixo da outra na segunda folha
-        elements.append(ReportlabImage(combined_image_paths[1], width=500, height=250))
-        elements.append(Paragraph(f"<i>Figura 5.2 - Heatmap média e desvio padrão parte 2</i>", style_caption))
-        elements.append(Spacer(1, 12))
-        elements.append(ReportlabImage(combined_image_paths[2], width=500, height=250))
-        elements.append(Paragraph(f"<i>Figura 5.3 - Heatmap média e desvio padrão parte 3</i>", style_caption))
-        elements.append(PageBreak())
+        if combined_image_paths:
+            # Adiciona a primeira imagem e quebra a página
+            elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
+            elements.append(Paragraph(f"<i>Figura 5.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
+            elements.append(PageBreak())
+
+            for idx, (i1, i2) in enumerate(pairwise(combined_image_paths[1:])):
+                # Adiciona o restante das imagens duas por folha
+                fig_idx = (idx+1)*2
+                if i1:
+                    elements.append(ReportlabImage(i1, width=500, height=250))
+                    elements.append(Paragraph(f"<i>Figura 5.{fig_idx} - Heatmap média e desvio padrão parte {fig_idx}</i>", style_caption))
+                    elements.append(Spacer(1, 12))
+                if i2:
+                    elements.append(ReportlabImage(i2, width=500, height=250))
+                    elements.append(Paragraph(f"<i>Figura 5.{fig_idx+1} - Heatmap média e desvio padrão parte {fig_idx+1}</i>", style_caption))
+                    elements.append(PageBreak())
 
         # Gera o PDF
         doc.build(elements)
@@ -990,12 +1005,6 @@ class S2P8_Anomalias():
 
         # Remove coluna de índice do DataFrame
         anomalias_df = anomalias_df.drop([' '], axis=1)
-
-        print("#"*80)
-        print("Escrevendo", name)
-        print(self.porcentagem)
-        print(anomalias_df)
-        print("#"*80)
 
     def gerarSecao(self,c,tipo,paragrafo,h):
         page_w, page_h = letter
@@ -1130,11 +1139,6 @@ class S2P9_TabelaRegioes():
 
         # Remove coluna de índice do DataFrame
         tabela_regioes = tabela_regioes.drop(['Índice'], axis=1)
-
-        print("#"*80)
-        print("Escrevendo", name)
-        print(tabela_regioes)
-        print("#"*80)
 
     def gerarSecao(self,c,tipo,paragrafo,h):
         page_w, page_h = letter
@@ -1304,14 +1308,8 @@ class S3P1_RelatorioIndividual():
             c.save()
 
             self.merge_pdfs([pdf1, pdf2, pdf3, pdf4], name)
-            for f in filter(lambda a : os.path.exists(a) and a != 'required_files//capa.pdf', [pdf1, pdf2, pdf3, pdf4]):
+            for f in filter(lambda a : os.path.exists(a) and a != os.path.join('required_files', 'capa.pdf'), [pdf1, pdf2, pdf3, pdf4]):
                 os.remove(f)
-
-            print(municipio)
-            print("#"*80)
-            print("Escrevendo", name)
-            print(data)
-            print("#"*80)
 
     def merge_pdfs(self, pdf_list: 'list[str]', output_path: str):
         pdf_writer = PdfWriter()

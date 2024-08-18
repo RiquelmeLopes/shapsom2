@@ -28,6 +28,7 @@ import zipfile
 from datetime import datetime
 
 globals()["lock"] = Lock()
+globals()["deleted_cache"] = False
 data_atual = datetime.now()
 
 generate_random_string = lambda length: ''.join(random.choices(string.ascii_letters + string.digits, k=length))
@@ -225,21 +226,24 @@ def make_map(df: pd.DataFrame, name_column: str, output_column: str, color: str=
             else:
                 return {'color': plt.cm.viridis(value), 'edgecolor': 'black', 'alpha': 0.9}
 
-    def combine_images(background: Image.Image, foreground: Image.Image) -> Image:
+    def combine_images(background: Image.Image, foreground: Image.Image) -> Image.Image:
         bg_width, bg_height = background.size
         fg_width, fg_height = foreground.size
 
+        # Resize foreground image
         new_fg_width = int(bg_width * 0.99)
         new_fg_height = int((fg_height / fg_width) * new_fg_width)
-        
         foreground_resized = foreground.resize((new_fg_width, new_fg_height))
-        
+
+        # Create a new image for the resized foreground with the same size as the background
+        foreground_padded = Image.new("RGBA", (bg_width, bg_height), (0, 0, 0, 0))
         fg_x = (bg_width - new_fg_width) // 2
         fg_y = (bg_height - new_fg_height) // 2
-        
-        combined_image = Image.new("RGBA", (bg_width, bg_height))
-        combined_image.paste(background, (0, 0))
-        combined_image.paste(foreground_resized, (fg_x, fg_y), foreground_resized)
+        foreground_padded.paste(foreground_resized, (fg_x, fg_y))
+
+        # Composite images
+        combined_image = Image.alpha_composite(background, foreground_padded)
+
         return combined_image
 
     rand_imgname = os.path.join("tempfiles", f"{generate_random_string(10)}.png")
@@ -248,15 +252,19 @@ def make_map(df: pd.DataFrame, name_column: str, output_column: str, color: str=
     gdf['edgecolor'] = gdf.apply(lambda row: style_function_image(row)['edgecolor'], axis=1)
     gdf['alpha'] = gdf.apply(lambda row: style_function_image(row)['alpha'], axis=1)
 
-    with globals()["lock"]:
-        fig, ax = plt.subplots(1, 1, figsize=(10, 10), dpi=150)
-        gdf.plot(ax=ax, edgecolor=gdf['edgecolor'], alpha=gdf['alpha'], color=gdf['color'])
-        ax.set_axis_off()
-        plt.savefig(rand_imgname, dpi=150, bbox_inches='tight', transparent=True)
-        foreground = Image.open(rand_imgname)
-        background = Image.open(os.path.join("required_files", "mapa_pe.png"))
-        img = combine_images(background, foreground)
-        img.save(rand_imgname)
+    while True:
+        with globals()["lock"]:
+            fig, ax = plt.subplots(1, 1, figsize=(10, 10), dpi=150)
+            gdf.plot(ax=ax, edgecolor=gdf['edgecolor'], alpha=gdf['alpha'], color=gdf['color'])
+            ax.set_axis_off()
+            plt.savefig(rand_imgname, dpi=150, bbox_inches='tight', transparent=True)
+            plt.close()
+            foreground = Image.open(rand_imgname).convert("RGBA")
+            background = Image.open(os.path.join("required_files", "mapa_pe.png")).convert("RGBA")
+            img = combine_images(background, foreground)
+            if abs(float(np.average(np.array(background) - np.array(img)))) >= 0.1:
+                img.save(rand_imgname)
+                break
         
     return map, rand_imgname
 
@@ -433,18 +441,27 @@ def remove_old_tempfiles():
         directory = "tempfiles"
         current_time = time.time()
 
-        for filename in os.listdir(directory):
-            file_path = os.path.join(directory, filename)
-            
-            if os.path.isfile(file_path):
-                file_mtime = os.path.getmtime(file_path)
-                file_age = current_time - file_mtime
-                
-                if file_age > 24 * 60 * 60:
+        if not globals()["deleted_cache"]:
+            globals()["deleted_cache"] = True
+            for filename in os.listdir(directory):
+                file_path = os.path.join(directory, filename)
+                if not file_path.endswith(".gitignore"):
                     try:
                         os.remove(file_path)
                     except:
                         pass
+        else:
+            for filename in os.listdir(directory):
+                file_path = os.path.join(directory, filename)
+                if os.path.isfile(file_path) and not file_path.endswith(".gitignore"):
+                    file_mtime = os.path.getmtime(file_path)
+                    file_age = current_time - file_mtime
+                    
+                    if file_age > 24 * 60 * 60:
+                        try:
+                            os.remove(file_path)
+                        except:
+                            pass
 
 def merge_pdfs(pdf_list: 'list[str]', output_path: str):
     pdf_writer = PdfWriter()
@@ -459,6 +476,9 @@ def merge_pdfs(pdf_list: 'list[str]', output_path: str):
 
 # Página de relatório genérica
 def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names: 'list[str]', page_before: str, page_after: str):
+    if not "base reader" in st.session_state.keys():
+        st.switch_page("main_page.py")
+
     generic_page_top(title, progress)
     _id_name_pairs = [(_id, _name) for _id, _name in zip(_ids, _names) if _id in st.session_state.keys()]
     selectable_sections = [_id for _id, _ in _id_name_pairs]
@@ -484,18 +504,17 @@ def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names:
             total_sections = include_on_report.count(True)
             pdf_names = []
             for i, (section_id, section_name) in enumerate(_id_name_selected):
-                rand_pdf = os.path.join("tempfiles//", f"{generate_random_string(10)}.pdf")
+                rand_pdf = os.path.join("tempfiles", f"{generate_random_string(10)}.pdf")
                 report_bar.progress(i / total_sections, f"Adicionando {section_name}...")
                 with globals()["lock"]:
                     st.session_state[section_id].write_page(rand_pdf)
-                    time.sleep(1) # É só pra simular um tempo de espera, tira isso depois
                 pdf_names.append(rand_pdf)
             
             with globals()["lock"]:
-                output_file = f"tempfiles//{generate_random_string(10)}.pdf"
-                pdf_names = ['required_files//capa.pdf'] + pdf_names
+                output_file = os.path.join("tempfiles", f"{generate_random_string(10)}.pdf")
+                pdf_names = [os.path.join('required_files', 'capa.pdf')] + pdf_names
                 merge_pdfs(pdf_names, output_file)
-                for f in filter(lambda a : os.path.exists(a) and a != 'required_files//capa.pdf', pdf_names):
+                for f in filter(lambda a : os.path.exists(a) and a != os.path.join('required_files', 'capa.pdf'), pdf_names):
                     os.remove(f)
             report_bar.progress(1.0, f"Relatório concluído.")
 
@@ -514,6 +533,9 @@ def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names:
     generic_page_bottom(page_before, page_after)
 
 def generate_individual_reports(title: str, progress: float, page_before: str, page_after: str):
+    if not "base reader" in st.session_state.keys():
+        st.switch_page("main_page.py")
+
     generic_page_top(title, progress)
     with st.form("individual_form"):
         st.subheader("Selecione os Municípios")
@@ -528,18 +550,17 @@ def generate_individual_reports(title: str, progress: float, page_before: str, p
             report_bar = st.progress(0.0)
             pdf_names = []
             for i, municipio in enumerate(list_selected_labels):
-                rand_pdf = os.path.join("tempfiles", f"{municipio}.pdf")
+                rand_pdf = os.path.join("tempfiles", f"{generate_random_string(10)}.pdf")
                 report_bar.progress(i / len(list_selected_labels), f"Gerando relatório de {municipio}...")
                 with globals()["lock"]:
                     st.session_state["relatorio individual"].write_page(municipio, rand_pdf)
-                    time.sleep(0.05)
                 pdf_names.append(rand_pdf)
             
             with globals()["lock"]:
                 zip_file_path = os.path.join("tempfiles", f"{generate_random_string(10)}.zip")
             with zipfile.ZipFile(zip_file_path, 'w') as zipf:
-                for pdf_file in pdf_names:
-                    zipf.write(pdf_file, os.path.basename(pdf_file))  # Adiciona o PDF ao arquivo ZIP
+                for pdf_file, municipio in zip(pdf_names, list_selected_labels):
+                    zipf.write(pdf_file, os.path.basename(f"{municipio}.pdf"))  # Adiciona o PDF ao arquivo ZIP
                     os.remove(pdf_file)  # Remove o PDF individual após adicioná-lo ao ZIP
             report_bar.progress(1.0, f"Relatórios concluídos.")
     try:

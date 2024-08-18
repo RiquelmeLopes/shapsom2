@@ -2,11 +2,12 @@ import streamlit as st
 from copy import deepcopy
 from page_classes import S2P2_MapaSom
 import altair as alt
+import math
 from my_utilities import report_page_top, report_page_bottom, create_map, HEX_SHAPE, clear_cached_data, PAGE_COUNT
 
 def S2P2_set_default_parameters():
-    st.session_state["mapa som"].sigma = st.session_state["sigma"] = 9
-    st.session_state["mapa som"].size = st.session_state["size"] = 30
+    st.session_state["mapa som"].sigma = st.session_state["sigma"] = 4 + int(math.ceil(5 * len(st.session_state["base reader"].crunched_database_average) / 186))
+    st.session_state["mapa som"].size = st.session_state["size"] = 10 + int(math.ceil(20 * len(st.session_state["base reader"].crunched_database_average) / 186))
     st.session_state["mapa som"].lr = st.session_state["lr"] = -3.0
     st.session_state["mapa som"].epochs = st.session_state["epochs"] = 15000
     st.session_state["mapa som"].cluster_distance = st.session_state["cluster_distance"] = 1.5

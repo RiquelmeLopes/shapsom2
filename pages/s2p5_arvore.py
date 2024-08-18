@@ -38,6 +38,7 @@ with st.spinner("Gerando árvore..."):
             tree.plot_tree(reg, ax=ax, feature_names=x.columns, filled=True, fontsize=10)
             st.session_state["arvore"].fig = deepcopy(fig)
             plt.savefig(rand_imgname, dpi=150, bbox_inches='tight', transparent=True)
+            plt.close()
     st.pyplot(st.session_state["arvore"].fig, use_container_width=True)
 
 st.info(f"Figura 3.2.1 - Árvore de Decisão")
