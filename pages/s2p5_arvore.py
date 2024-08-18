@@ -26,9 +26,10 @@ with st.spinner("Gerando árvore..."):
         reg = DecisionTreeRegressor(max_depth=3, random_state=42)
         reg.fit(x, y)
         feature_importances = pd.DataFrame({"Variáveis": x.columns, "Importância": reg.feature_importances_}).sort_values("Importância", ascending=False)
+        st.session_state["arvore"].feature_importances = feature_importances
 
         st.dataframe(feature_importances, use_container_width=True)
-        st.info(f"Tabela 3.2.1 - Importância dos Fatores no Modelo de Árvore de Decisão")
+        st.info(f"Tabela 3.2.1 - Importância das Variáveis no Modelo de Árvore de Decisão")
 
         rand_imgname = os.path.join("tempfiles", f"{generate_random_string(10)}.png")
         st.session_state["arvore"].img_path = rand_imgname

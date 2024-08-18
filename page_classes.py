@@ -620,12 +620,87 @@ class S2P5_Arvore():
         self.finished_selection = False
     
     def write_page(self, name: str="arvore.pdf"):
-        # A imagem da árvore
-        img = Image.open(self.img_path)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(img.size)
-        print("#"*80)
+        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Estilos personalizados
+        title_style = ParagraphStyle(name='CenterTitle', fontName="Helvetica-Bold", fontSize=16, alignment=4, leading=16, encoding="utf-8")
+        paragraph_style = ParagraphStyle(name='CenterParagraph', fontName="Helvetica", fontSize=12, alignment=4, leading=16, leftIndent=0, rightIndent=0, encoding="utf-8")
+        table_caption_style = ParagraphStyle(name="Subtitulo", fontName="Helvetica-Oblique", fontSize=10, alignment=4, leading=16, encoding="utf-8", textColor='blue')
+
+        # Adiciona o título e introdução
+        intro_text = '''
+        Nesta seção, apresentamos a análise de agrupamentos utilizando um modelo de árvore de decisão. A importância de uma variável indica quanto ela contribui para a decisão final do modelo. Valores mais altos de importância sugerem que a variável tem um impacto maior na previsão do modelo.
+        '''
+        elements.append(Paragraph("Seção 3.2 - Análise de agrupamentos com Árvore de Decisão", title_style))
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(intro_text, paragraph_style))
+        elements.append(Spacer(1, 12))
+
+        # Recupera o DataFrame com a importância das variáveis
+        feature_importances = deepcopy(st.session_state["arvore"].feature_importances)
+        
+        data = [feature_importances.columns.tolist()] + feature_importances.values.tolist()
+        # largura total da tabela
+        total_width = 480
+
+        # Define a largura da primeira coluna como 60% do total
+        first_col_width = total_width * 0.80
+
+        # Calcula a largura das colunas restantes
+        num_cols = len(data[0])
+        remaining_width = total_width - first_col_width
+        remaining_col_width = remaining_width / (num_cols - 1)  # Distribui o restante igualmente
+
+        # Define as larguras das colunas
+        col_widths = [first_col_width] + [remaining_col_width] * (num_cols - 1)
+
+        for row_idx in range(1, len(data)):
+            if (len(data[row_idx][0]) > 80):
+                data[row_idx][0] = data[row_idx][0][:80] +'...'
+
+            for col_idx in range(1, len(data[row_idx])):
+                data[row_idx][col_idx] = float(f"{data[row_idx][col_idx]:.5f}")
+
+        
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('WORDWRAP', (0, 0), (-1, -1), 'WORD'),
+        ]))
+
+        # Deixar azul, se for positivo (sempre é positivo)
+        # for row_idx in range(1, len(data)):
+        #     for col_idx in range(1, len(data[row_idx])):
+        #         value = data[row_idx][col_idx]
+        #         if value > 0:
+        #             table.setStyle(TableStyle([('TEXTCOLOR', (col_idx, row_idx), (col_idx, row_idx), colors.blue)]))
+        #         elif value < 0:
+        #             table.setStyle(TableStyle([('TEXTCOLOR', (col_idx, row_idx), (col_idx, row_idx), colors.red)]))
+        
+        elements.append(table)
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph("Tabela 3.2.1 - Importância das Variáveis no Modelo de Árvore de Decisão", table_caption_style))
+        elements.append(Spacer(1, 24))
+        
+        # Adiciona a imagem da árvore de decisão
+        if st.session_state["arvore"].img_path:
+            img_path = st.session_state["arvore"].img_path
+            elements.append(ReportlabImage(img_path, width=480, height=480))
+            elements.append(Spacer(1, 12))
+            elements.append(Paragraph("Figura 3.2.1 - Árvore de Decisão", table_caption_style))
+
+        # Constrói o PDF
+        doc.build(elements)
 
 class S2P6_AnaliseGrupos():
     def __init__(self):
