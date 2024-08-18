@@ -9,6 +9,7 @@ from reportlab import platypus
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
 from reportlab.platypus import PageBreak
+from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -48,16 +49,45 @@ class S1P1_MapaExploratorio():
         doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
         styles = getSampleStyleSheet()
+        # Estilos para o texto
 
+        style_title = ParagraphStyle(
+            'Title',
+            fontSize=14,
+            leading=16,
+            fontName="Helvetica-Bold",
+            spaceAfter=14
+        )
+        style_normal = styles["Normal"]
+
+        style_caption = ParagraphStyle(
+            'Caption',
+            fontSize=10,
+            fontName="Helvetica-Oblique",
+            textColor=colors.blue
+        )
+
+        explanation_text1 = """
+        O mapa de análise da variável alvo apresenta uma análise geoespacial dos municípios do estado de Pernambuco. 
+        As diferentes tonalidades de cores no mapa representam as variações nos níveis da variável de escolha. As áreas 
+        em tons mais escuros indicam um desempenho superior, enquanto as áreas em tons mais claros refletem um desempenho 
+        inferior. Esta visualização detalhada é crucial para identificar regiões que necessitam de intervenções mais intensivas, 
+        ajudando a direcionar políticas públicas e recursos de forma mais eficiente.\n"""
+        
         if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
             elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
             elements.append(Spacer(1, 18))
+        
+        elements.append(Paragraph("Seção 1 - Mapa de Análise da Variável Alvo", style_title))
+        elements.append(Paragraph(explanation_text1, style_normal))        
+        elements.append(Spacer(1, 12))
 
         # Adiciona a imagem do mapa ao PDF
         if os.path.exists(self.img_path):
             mapa_img = Image.open(self.img_path)
-            elements.append(Paragraph("Mapa Exploratório", styles['Title']))
             elements.append(ReportlabImage(self.img_path, width=400, height=300))
+            elements.append(Spacer(1, 5))
+            elements.append(Paragraph('Figura 1 - Mapa Colorido Baseado na Variação de Valores da Variável Alvo', style_caption))
             elements.append(Spacer(1, 12))
 
         # Gera o PDF
@@ -70,28 +100,56 @@ class S1P2_AnaliseEstatistica():
         self.finished_selection = False
     
     def write_page(self, name: str="analise_estatistica.pdf"):
-        df: pd.DataFrame = deepcopy(self.dfmc)
+        df: pd.DataFrame = deepcopy(self.dfmc)        
+        df = df.round(2)
         doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
         styles = getSampleStyleSheet()
+        # Estilos para o texto
+        style_title = ParagraphStyle(
+            'Title',
+            fontSize=14,
+            leading=16,
+            fontName="Helvetica-Bold",
+            spaceAfter=14
+        )
+        style_normal = styles["Normal"]
+
+        style_caption = ParagraphStyle(
+            'Caption',
+            fontSize=10,
+            fontName="Helvetica-Oblique",
+            textColor=colors.blue
+        )
+
+        explanation_text1 = """
+        A tabela de estatísticas fornece um resumo estatístico descritivo da variável alvo para os municípios analisados. 
+        Os valores apresentados incluem a contagem de observações, média, desvio padrão, valores mínimos e máximos, bem como 
+        os percentis 25%, 50% (mediana) e 75%. Estas estatísticas são úteis para entender a distribuição e a variabilidade entre 
+        os municípios.\n"""
+
         if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
             elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
             elements.append(Spacer(1, 18))
 
-        elements.append(Paragraph("Análise Estatística", styles['Title']))
+        elements.append(Paragraph("Seção 2 - Análise Estatística", style_title))
+        elements.append(Paragraph(explanation_text1, style_normal))        
+        elements.append(Spacer(1, 12))
+
         if isinstance(df, pd.DataFrame) and not df.empty:
+            df.columns=['Contagem','Média','Desvio Padrão','Mínimo','1o Quartil','Mediana','3o Quartil','Máximo']            
             data = [df.columns.tolist()] + df.values.tolist()
             table = Table(data)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            table.setStyle(TableStyle([                
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black)
             ]))
             elements.append(table)
+            elements.append(Spacer(1, 5))
+            elements.append(Paragraph('Tabela 1 - Estatísticas Descritivas da Variável Alvo', style_caption))
             elements.append(Spacer(1, 12))
 
         # Gera o PDF
@@ -110,16 +168,44 @@ class S1P3_GraficoDispersao():
         doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
         styles = getSampleStyleSheet()
+        # Estilos para o texto
+        style_title = ParagraphStyle(
+            'Title',
+            fontSize=14,
+            leading=16,
+            fontName="Helvetica-Bold",
+            spaceAfter=14
+        )
+        style_normal = styles["Normal"]
+
+        style_caption = ParagraphStyle(
+            'Caption',
+            fontSize=10,
+            fontName="Helvetica-Oblique",
+            textColor=colors.blue
+        )
+
+        explanation_text1 = """
+        O  gráfico de dispersão faz parte de uma análise estatística mais ampla apresentada no relatório, que visa
+        explorar a variabilidade e o desempenho geral dos municípios. Ele permite identificar quais municípios
+        apresentam desempenhos extremos, tanto positivos quanto negativos, e como os valores da nossa variável
+        alvo estão dispersos em relação à media. Esta visualização facilita uma identificação mais superficial das
+        áreas que necessitam de maior atenção e recursos. .\n"""
 
         if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
             elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
             elements.append(Spacer(1, 18))
 
+        elements.append(Paragraph("Seção 3 - Gráfico de Dispersão ", style_title))
+        elements.append(Paragraph(explanation_text1, style_normal))        
+        elements.append(Spacer(1, 12))
         # Adiciona o gráfico de dispersão ao PDF
         if os.path.exists(self.img_path):
             dispersao_img = Image.open(self.img_path)
             elements.append(Paragraph(f"Gráfico de Dispersão - {self.variavel_dispersao}", styles['Title']))
             elements.append(ReportlabImage(self.img_path, width=400, height=300))
+            elements.append(Spacer(1, 5))
+            elements.append(Paragraph('Gráfico 1 - Gráfico de Dispersão da Distribuição da Variável Selecionada por Município', style_caption))
             elements.append(Spacer(1, 12))
 
         # Gera o PDF
@@ -179,7 +265,7 @@ class S2P1_DescricaoArquivo():
         page_w, page_h = letter
         c = canvas.Canvas(name)
         c, h = self.gerarSecao(c,'t','1. Descrição do arquivo de entrada',65)
-        c, h = self.gerarSecao(c,'p','Essa seção tem como objetivo detalhar as especificações e requisitos dos dados necessários para o correto funcionamento do sistema.',65)
+        c, h = self.gerarSecao(c,'p','Essa seção tem como objetivo detalhar as especificações e requisitos dos dados necessários para o correto funcionamento do sistema.', 95)
         c, h = self.gerarSecao(c,'s','1.1 Dados de Treinamento',h)
         c, h = self.gerarSecao(c,'p',descricao,h)
         c, h = self.gerarSecao(c,'p',decricao2,h-28)
@@ -368,74 +454,115 @@ class S2P3_Heatmap():
             std = std.select_dtypes(include=[float, int])
 
             # Diretório para salvar os heatmaps
-            
-            avg_heatmap_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", 'tempfiles')
-            std_heatmap_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", 'tempfiles')
+            temp_dir = "tempfiles"
+            if not os.path.exists(temp_dir):
+                os.makedirs(temp_dir)
 
-            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, 'tempfiles')
+            avg_heatmap_paths, avg_legend_paths, avg_title_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
+            std_heatmap_paths, std_legend_paths, std_title_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
+
+            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, temp_dir)
 
             # Gera o PDF com as imagens combinadas e textos
             self.generate_pdf(name, combined_image_paths)
 
     def generate_heatmap_fragments(self, df, title, cmap, output_dir):
         heatmap_paths = []
+        legend_paths = []
+        title_paths = []
         row_blocks = [df.iloc[i:i + 63, :] for i in range(0, len(df), 63)]
+
+        # Definindo os valores contínuos para xlabels e ylabels
+        x_label_start = 1
+        y_label_start = 1
 
         for index, block in enumerate(row_blocks):
             height = 4 * (len(block) / 63)  # Ajusta a altura de acordo com as linhas (base 4in para 63 linhas)
             max_cols = 30
             width = 3 * min(len(block.columns), max_cols) / max_cols  # Ajusta a largura com base nas colunas
 
+            # Cria o heatmap
             fig, ax = plt.subplots(figsize=(width, height))  # Configura a largura e altura dinamicamente
             cax = ax.matshow(block, cmap=cmap)
 
-            # Adiciona a barra de cores em cima
-            cbar = fig.colorbar(cax, orientation='horizontal', pad=0.1)
-            cbar.ax.tick_params(labelsize=8)
+            # Adiciona as legendas contínuas nos eixos
+            x_labels = range(x_label_start, x_label_start + len(block.columns))
+            y_labels = range(y_label_start, y_label_start + len(block))
 
-            # Adiciona o título acima da barra de cores
-            ax.set_title(f"{title} - Parte {index + 1}", pad=20, fontsize=5)
-
-            # Remove as legendas dos eixos
             ax.set_xticks(range(len(block.columns)))
-            ax.set_xticklabels(range(1, len(block.columns) + 1), fontsize=3)
+            ax.set_xticklabels(x_labels, fontsize=4)
             ax.set_yticks(range(len(block)))
-            ax.set_yticklabels(range(1, len(block) + 1), fontsize=3)
+            ax.set_yticklabels(y_labels, fontsize=4)
 
-            # Salva o fragmento do heatmap
+            x_label_start += len(block.columns)
+            y_label_start += len(block)
+
+            # Salva o heatmap sem a barra de cores
             heatmap_path = os.path.join(output_dir, f"heatmap_{title.replace(' ', '_').lower()}_{index + 1}.png")
             plt.tight_layout()
             plt.savefig(heatmap_path, dpi=300)
             plt.close()
 
+            # Cria a barra de cores separada
+            fig, ax = plt.subplots(figsize=(width, 0.4))  # Barra de cores pequena e horizontal
+            fig.colorbar(cax, cax=ax, orientation='horizontal')
+            legend_path = os.path.join(output_dir, f"legend_{title.replace(' ', '_').lower()}_{index + 1}.png")
+            plt.tight_layout()
+            plt.savefig(legend_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+            plt.close()
+
+            # Cria o título separado como uma imagem
+            fig, ax = plt.subplots(figsize=(width, 0.5))
+            ax.text(0.5, 0.5, f"{title} - Parte {index + 1}", ha='center', va='center', fontsize=12)
+            ax.axis('off')
+            title_path = os.path.join(output_dir, f"title_{title.replace(' ', '_').lower()}_{index + 1}.png")
+            plt.tight_layout()
+            plt.savefig(title_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+            plt.close()
+
             heatmap_paths.append(heatmap_path)
+            legend_paths.append(legend_path)
+            title_paths.append(title_path)
 
-        return heatmap_paths
+        return heatmap_paths, legend_paths, title_paths
 
-    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, output_dir):
+    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, output_dir):
         combined_image_paths = []
 
         for i in range(len(avg_heatmap_paths)):
-            # Abre as duas imagens
-            avg_img = Image.open(avg_heatmap_paths[i])
-            std_img = Image.open(std_heatmap_paths[i])
+            with Image.open(avg_heatmap_paths[i]) as avg_img, \
+                 Image.open(std_heatmap_paths[i]) as std_img, \
+                 Image.open(avg_legend_paths[i]) as avg_legend, \
+                 Image.open(std_legend_paths[i]) as std_legend, \
+                 Image.open(avg_title_paths[i]) as avg_title, \
+                 Image.open(std_title_paths[i]) as std_title:
 
-            # Calcula a altura máxima e a largura combinada
-            max_height = max(avg_img.height, std_img.height)
-            total_width = avg_img.width + std_img.width
+                # Calcula a altura máxima e a largura combinada dos heatmaps
+                max_height = max(avg_img.height, std_img.height)
+                total_width = avg_img.width + std_img.width
 
-            # Cria uma nova imagem com o tamanho combinado
-            combined_img = Image.new("RGB", (total_width, max_height))
+                # Calcula a altura das legendas e títulos e ajusta o tamanho total da imagem combinada
+                legend_height = max(avg_legend.height, std_legend.height)
+                title_height = max(avg_title.height, std_title.height)
+                combined_img = Image.new("RGB", (total_width, max_height + legend_height + title_height))
 
-            # Cola as imagens lado a lado
-            combined_img.paste(avg_img, (0, 0))
-            combined_img.paste(std_img, (avg_img.width, 0))
+                # Cola os títulos em cima
+                combined_img.paste(avg_title, (0, 0))
+                combined_img.paste(std_title, (avg_img.width, 0))
 
-            # Salva a imagem combinada
-            combined_image_path = os.path.join(output_dir, f"combined_heatmap_{i + 1}.png")
-            combined_img.save(combined_image_path)
+                # Cola as legendas logo abaixo dos títulos
+                combined_img.paste(avg_legend, (0, title_height))
+                combined_img.paste(std_legend, (avg_img.width, title_height))
 
-            combined_image_paths.append(combined_image_path)
+                # Cola os heatmaps logo abaixo das legendas
+                combined_img.paste(avg_img, (0, title_height + legend_height))
+                combined_img.paste(std_img, (avg_img.width, title_height + legend_height))
+
+                # Salva a imagem combinada
+                combined_image_path = os.path.join(output_dir, f"combined_heatmap_{i + 1}.png")
+                combined_img.save(combined_image_path)
+
+                combined_image_paths.append(combined_image_path)
 
         return combined_image_paths
 
@@ -515,11 +642,11 @@ class S2P3_Heatmap():
                 # Adiciona o restante das imagens duas por folha
                 fig_idx = (idx+1)*2
                 if i1:
-                    elements.append(ReportlabImage(i1, width=500, height=250))
+                    elements.append(ReportlabImage(i1, width=500, height=300))
                     elements.append(Paragraph(f"<i>Figura 2.{fig_idx} - Heatmap média e desvio padrão parte {fig_idx}</i>", style_caption))
                     elements.append(Spacer(1, 12))
                 if i2:
-                    elements.append(ReportlabImage(i2, width=500, height=250))
+                    elements.append(ReportlabImage(i2, width=500, height=300))
                     elements.append(Paragraph(f"<i>Figura 2.{fig_idx+1} - Heatmap média e desvio padrão parte {fig_idx+1}</i>", style_caption))
                     elements.append(PageBreak())
 
@@ -550,6 +677,10 @@ class S2P4_Shap():
         intro_text = '''
         Nesta seção, apresentamos os grupos identificados e as variáveis que mais influenciaram na formação desses grupos. Um "agrupamento" reúne dados que são mais semelhantes em termos de suas características globais. Esses grupos são utilizados na aplicação de IA através de bases de dados (tabelas) fornecidas pela área usuária para o processamento com Redes Neurais Artificiais. "Agrupamento" é o processo de reunir, por exemplo, municípios, com base em suas semelhanças, visando realizar triagens para guiar auditorias.
         '''
+        if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+            elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
+            elements.append(Spacer(1, 18))
+
         elements.append(Paragraph("Seção 3.1 - Análise de agrupamentos com SHAP", title_style))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph(intro_text, paragraph_style))
@@ -637,6 +768,10 @@ class S2P5_Arvore():
         intro_text = '''
         Nesta seção, apresentamos a análise de agrupamentos utilizando um modelo de árvore de decisão. A importância de uma variável indica quanto ela contribui para a decisão final do modelo. Valores mais altos de importância sugerem que a variável tem um impacto maior na previsão do modelo.
         '''
+        if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+            elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
+            elements.append(Spacer(1, 18))
+
         elements.append(Paragraph("Seção 3.2 - Análise de agrupamentos com Árvore de Decisão", title_style))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph(intro_text, paragraph_style))
@@ -694,9 +829,13 @@ class S2P5_Arvore():
         elements.append(table)
         elements.append(Spacer(1, 6))
         elements.append(Paragraph("Tabela 3.2.1 - Importância das Variáveis no Modelo de Árvore de Decisão", table_caption_style))
-        elements.append(Spacer(1, 24))
+        elements.append(PageBreak())
         
         # Adiciona a imagem da árvore de decisão
+        if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
+            elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
+            elements.append(Spacer(1, 18))
+
         if st.session_state["arvore"].img_path:
             img_path = st.session_state["arvore"].img_path
             elements.append(ReportlabImage(img_path, width=480, height=480))
@@ -719,17 +858,53 @@ class S2P6_AnaliseGrupos():
     
     def write_page(self, name: str="analise_grupos.pdf"):
         # Setup document
-        doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        doc = BaseDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
+        # Definir a estrutura de frames (com a margem correta para incluir o cabeçalho)
+        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height - 50, id='normal')
+
+        # Definir o cabeçalho para todas as páginas
+        def add_header(canvas, doc):
+            canvas.saveState()
+            header_path = os.path.join('required_files', 'cabecalho.jpeg')
+            if os.path.exists(header_path):
+                canvas.drawImage(header_path, doc.leftMargin, A4[1] - 50, width=500, height=50)
+            canvas.restoreState()
+
+        # Configurar o template com o cabeçalho
+        template = PageTemplate(id='header_template', frames=frame, onPage=add_header)
+        doc.addPageTemplates([template])
+
         elements = []
         styles = getSampleStyleSheet()
+        style_title = ParagraphStyle(
+            'Title',
+            fontSize=14,
+            leading=16,
+            fontName="Helvetica-Bold",
+            spaceAfter=14
+        )
+        style_normal = styles["Normal"]
+
+        style_caption = ParagraphStyle(
+            'Caption',
+            fontSize=10,
+            fontName="Helvetica-Oblique",
+            textColor=colors.blue
+        )
+
+        explanation_text1 = """
+        A análise comparativa entre os agrupamentos é conduzida combinando todas as informações da 
+        "Análise de Agrupamento" (Seção 3), organizando-as em uma disposição paralela. Isso tem o 
+        objetivo de destacar de forma mais clara as disparidades nas estruturas dos agrupamentos.\n"""
 
         # For each group, generate a page
         for i, (output_average, municipio_df, shap_df, image_path) in enumerate(list(zip(self.output_averages, self.municipio_dfs, self.shap_dfs, self.image_paths))):
             # Title
             title = f"Grupo {i+1}"
-            if os.path.exists(os.path.join('required_files', 'cabecalho.jpeg')):
-                elements.append(ReportlabImage(os.path.join('required_files', 'cabecalho.jpeg'), width=500, height=50))
-                elements.append(Spacer(1, 18))
+            if title == 'Grupo 1':
+                elements.append(Paragraph("Seção 4 - Diferenças entre Agrupamentos ", style_title))
+                elements.append(Paragraph(explanation_text1, style_normal))        
+                elements.append(Spacer(1, 12))
 
             elements.append(Paragraph(title, styles['Title']))
 
@@ -738,63 +913,82 @@ class S2P6_AnaliseGrupos():
                 data = [['Feature', 'Value']] + list(output_average.items())
                 table = Table(data)
                 table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                     ('GRID', (0, 0), (-1, -1), 1, colors.black)
                 ]))
                 elements.append(table)
             elif isinstance(output_average, (float, int)):
-                elements.append(Paragraph(f"Average value: {output_average}", styles['Normal']))
+                elements.append(Paragraph(f"Valor Médio do Grupo: {output_average}", styles['Normal']))
             else:
-                elements.append(Paragraph("Output averages not available", styles['Normal']))
+                pass
 
-            elements.append(Spacer(1, 12))
+            elements.append(Spacer(1, 24))
 
             # Municipio dataframe table
             if not municipio_df.empty:
                 data = [municipio_df.columns.tolist()] + municipio_df.values.tolist()
                 table = Table(data)
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                table.setStyle(TableStyle([                    
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),                    
                     ('GRID', (0, 0), (-1, -1), 1, colors.black)
                 ]))
                 elements.append(table)
-                elements.append(Spacer(1, 12))
+                elements.append(Spacer(1, 24))
+                elements.append(Paragraph(f'Tabela 4.{i+1}.1 - Municípios do Grupo {i+1}', style_caption))
+                elements.append(Spacer(1, 24))
 
             # Shap dataframe table
             if not shap_df.empty:
+                shap_df = shap_df.round(3)
                 data = [shap_df.columns.tolist()] + shap_df.values.tolist()
+
+                # Criando a tabela
                 table = Table(data)
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+
+                # Definindo o estilo básico da tabela
+                base_style = TableStyle([                
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),  
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),        
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
-                ]))
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),        
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)    
+                ])
+
+                for row in range(1, len(data)):
+                    for col in range(1, len(data[row])):
+                        cell_value = data[row][col]
+                        if isinstance(cell_value, (int, float)):
+                            if cell_value > 0:
+                                base_style.add('TEXTCOLOR', (col, row), (col, row), colors.blue)
+                            elif cell_value < 0:
+                                base_style.add('TEXTCOLOR', (col, row), (col, row), colors.red)
+
+                # Aplicando o estilo à tabela
+                table.setStyle(base_style)
+
+                # Adicionando a tabela e a legenda ao documento
                 elements.append(table)
-                elements.append(Spacer(1, 12))
+                elements.append(Spacer(1, 18))
+                elements.append(Paragraph(f'Tabela 4.{i+1}.2 - Fatores Que Mais Influenciam Positivamente e Negativamente no Grupo {i+1}', style_caption))
+                elements.append(Spacer(1, 18))
 
             # Add image
             if os.path.exists(image_path):
                 img = platypus.Image(image_path)
-                img.drawHeight = 200
-                img.drawWidth = 200
+                img.drawHeight = 500
+                img.drawWidth = 500
                 elements.append(img)
+                elements.append(Spacer(1, 18))
+                elements.append(Paragraph(f'Figura 4.{i+1} - Mapa de Municípios do Grupo {i+1}', style_caption))                
 
             # Page break between groups
-            elements.append(Spacer(1, 48))
+            elements.append(PageBreak())
 
         # Build PDF
         doc.build(elements)
@@ -822,77 +1016,115 @@ class S2P7_HeatmapFiltro():
             if not os.path.exists(temp_dir):
                 os.makedirs(temp_dir)
 
-            avg_heatmap_paths = self.generate_heatmap_fragments(avg, "Média Filtrada", "YlOrRd", temp_dir)
-            std_heatmap_paths = self.generate_heatmap_fragments(std, "Desvio Padrão Filtrado", "gray", temp_dir)
+            avg_heatmap_paths, avg_legend_paths, avg_title_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
+            std_heatmap_paths, std_legend_paths, std_title_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
 
-            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, temp_dir)
+            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, temp_dir)
 
             # Gera o PDF com as imagens combinadas e textos
             self.generate_pdf(name, combined_image_paths)
 
     def generate_heatmap_fragments(self, df, title, cmap, output_dir):
         heatmap_paths = []
+        legend_paths = []
+        title_paths = []
         row_blocks = [df.iloc[i:i + 63, :] for i in range(0, len(df), 63)]
+
+        # Definindo os valores contínuos para xlabels e ylabels
+        x_label_start = 1
+        y_label_start = 1
 
         for index, block in enumerate(row_blocks):
             height = 4 * (len(block) / 63)  # Ajusta a altura de acordo com as linhas (base 4in para 63 linhas)
             max_cols = 30
             width = 3 * min(len(block.columns), max_cols) / max_cols  # Ajusta a largura com base nas colunas
 
+            # Cria o heatmap
             fig, ax = plt.subplots(figsize=(width, height))  # Configura a largura e altura dinamicamente
             cax = ax.matshow(block, cmap=cmap)
 
-            # Adiciona a barra de cores em cima
-            cbar = fig.colorbar(cax, orientation='horizontal', pad=0.1)
-            cbar.ax.tick_params(labelsize=8)
+            # Adiciona as legendas contínuas nos eixos
+            x_labels = range(x_label_start, x_label_start + len(block.columns))
+            y_labels = range(y_label_start, y_label_start + len(block))
 
-            # Adiciona o título acima da barra de cores
-            ax.set_title(f"{title} - Parte {index + 1}", pad=20, fontsize=5)
-
-            # Adiciona as legendas dos eixos como números de 1 a n com tamanho de fonte reduzido
             ax.set_xticks(range(len(block.columns)))
-            ax.set_xticklabels(range(1, len(block.columns) + 1), fontsize=3)
+            ax.set_xticklabels(x_labels, fontsize=4)
             ax.set_yticks(range(len(block)))
-            ax.set_yticklabels(range(1, len(block) + 1), fontsize=3)
+            ax.set_yticklabels(y_labels, fontsize=4)
 
-            # Salva o fragmento do heatmap
+            x_label_start += len(block.columns)
+            y_label_start += len(block)
+
+            # Salva o heatmap sem a barra de cores
             heatmap_path = os.path.join(output_dir, f"heatmap_{title.replace(' ', '_').lower()}_{index + 1}.png")
             plt.tight_layout()
             plt.savefig(heatmap_path, dpi=300)
             plt.close()
 
+            # Cria a barra de cores separada
+            fig, ax = plt.subplots(figsize=(width, 0.4))  # Barra de cores pequena e horizontal
+            fig.colorbar(cax, cax=ax, orientation='horizontal')
+            legend_path = os.path.join(output_dir, f"legend_{title.replace(' ', '_').lower()}_{index + 1}.png")
+            plt.tight_layout()
+            plt.savefig(legend_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+            plt.close()
+
+            # Cria o título separado como uma imagem
+            fig, ax = plt.subplots(figsize=(width, 0.5))
+            ax.text(0.5, 0.5, f"{title} - Parte {index + 1}", ha='center', va='center', fontsize=12)
+            ax.axis('off')
+            title_path = os.path.join(output_dir, f"title_{title.replace(' ', '_').lower()}_{index + 1}.png")
+            plt.tight_layout()
+            plt.savefig(title_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+            plt.close()
+
             heatmap_paths.append(heatmap_path)
+            legend_paths.append(legend_path)
+            title_paths.append(title_path)
 
-        return heatmap_paths
+        return heatmap_paths, legend_paths, title_paths
 
-    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, output_dir):
+    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, output_dir):
         combined_image_paths = []
 
         for i in range(len(avg_heatmap_paths)):
-            # Abre as duas imagens
-            avg_img = Image.open(avg_heatmap_paths[i])
-            std_img = Image.open(std_heatmap_paths[i])
+            with Image.open(avg_heatmap_paths[i]) as avg_img, \
+                 Image.open(std_heatmap_paths[i]) as std_img, \
+                 Image.open(avg_legend_paths[i]) as avg_legend, \
+                 Image.open(std_legend_paths[i]) as std_legend, \
+                 Image.open(avg_title_paths[i]) as avg_title, \
+                 Image.open(std_title_paths[i]) as std_title:
 
-            # Calcula a altura máxima e a largura combinada
-            max_height = max(avg_img.height, std_img.height)
-            total_width = avg_img.width + std_img.width
+                # Calcula a altura máxima e a largura combinada dos heatmaps
+                max_height = max(avg_img.height, std_img.height)
+                total_width = avg_img.width + std_img.width
 
-            # Cria uma nova imagem com o tamanho combinado
-            combined_img = Image.new("RGB", (total_width, max_height))
+                # Calcula a altura das legendas e títulos e ajusta o tamanho total da imagem combinada
+                legend_height = max(avg_legend.height, std_legend.height)
+                title_height = max(avg_title.height, std_title.height)
+                combined_img = Image.new("RGB", (total_width, max_height + legend_height + title_height))
 
-            # Cola as imagens lado a lado
-            combined_img.paste(avg_img, (0, 0))
-            combined_img.paste(std_img, (avg_img.width, 0))
+                # Cola os títulos em cima
+                combined_img.paste(avg_title, (0, 0))
+                combined_img.paste(std_title, (avg_img.width, 0))
 
-            # Salva a imagem combinada
-            combined_image_path = os.path.join(output_dir, f"combined_heatmap_{i + 1}.png")
-            combined_img.save(combined_image_path)
+                # Cola as legendas logo abaixo dos títulos
+                combined_img.paste(avg_legend, (0, title_height))
+                combined_img.paste(std_legend, (avg_img.width, title_height))
 
-            combined_image_paths.append(combined_image_path)
+                # Cola os heatmaps logo abaixo das legendas
+                combined_img.paste(avg_img, (0, title_height + legend_height))
+                combined_img.paste(std_img, (avg_img.width, title_height + legend_height))
+
+                # Salva a imagem combinada
+                combined_image_path = os.path.join(output_dir, f"combined_heatmap_{i + 1}.png")
+                combined_img.save(combined_image_path)
+
+                combined_image_paths.append(combined_image_path)
 
         return combined_image_paths
 
-    def generate_pdf(self, pdf_name, combined_image_paths):
+    def generate_pdf(self, pdf_name, combined_image_paths: list):
         doc = SimpleDocTemplate(pdf_name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
 
@@ -911,6 +1143,7 @@ class S2P7_HeatmapFiltro():
             fontName="Helvetica-Bold",
             spaceAfter=14
         )
+        style_normal = styles["Normal"]
 
         style_caption = ParagraphStyle(
             'Caption',
@@ -918,7 +1151,6 @@ class S2P7_HeatmapFiltro():
             fontName="Helvetica-Oblique",
             textColor=colors.blue
         )
-        style_normal = styles["Normal"]
 
         explanation_text = """
         <b>Esta seção, assim como na seção 2, traz uma análise visual da base de dados, porém agora em 
@@ -939,19 +1171,19 @@ class S2P7_HeatmapFiltro():
         if combined_image_paths:
             # Adiciona a primeira imagem e quebra a página
             elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
-            elements.append(Paragraph(f"<i>Figura 5.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
+            elements.append(Paragraph(f"<i>Figura 2.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
             elements.append(PageBreak())
 
             for idx, (i1, i2) in enumerate(pairwise(combined_image_paths[1:])):
                 # Adiciona o restante das imagens duas por folha
                 fig_idx = (idx+1)*2
                 if i1:
-                    elements.append(ReportlabImage(i1, width=500, height=250))
-                    elements.append(Paragraph(f"<i>Figura 5.{fig_idx} - Heatmap média e desvio padrão parte {fig_idx}</i>", style_caption))
+                    elements.append(ReportlabImage(i1, width=500, height=300))
+                    elements.append(Paragraph(f"<i>Figura 2.{fig_idx} - Heatmap média e desvio padrão parte {fig_idx}</i>", style_caption))
                     elements.append(Spacer(1, 12))
                 if i2:
-                    elements.append(ReportlabImage(i2, width=500, height=250))
-                    elements.append(Paragraph(f"<i>Figura 5.{fig_idx+1} - Heatmap média e desvio padrão parte {fig_idx+1}</i>", style_caption))
+                    elements.append(ReportlabImage(i2, width=500, height=300))
+                    elements.append(Paragraph(f"<i>Figura 2.{fig_idx+1} - Heatmap média e desvio padrão parte {fig_idx+1}</i>", style_caption))
                     elements.append(PageBreak())
 
         # Gera o PDF

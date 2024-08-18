@@ -14,6 +14,7 @@ from minisom import MiniSom
 from scipy.cluster.hierarchy import linkage, fcluster
 import colorsys
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import plotly.express as px
 from xgboost import XGBRegressor
 import shap
@@ -26,6 +27,11 @@ import time
 from pypdf import PdfReader, PdfWriter
 import zipfile
 from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as ReportlabImage
+import os
 
 globals()["lock"] = Lock()
 globals()["deleted_cache"] = False
@@ -224,27 +230,35 @@ def make_map(df: pd.DataFrame, name_column: str, output_column: str, color: str=
             if color:
                 return {'color': color, 'edgecolor': 'black', 'alpha': 0.9}
             else:
-                return {'color': plt.cm.viridis(value), 'edgecolor': 'black', 'alpha': 0.9}
+                cmap = plt.cm.viridis
+                return {'color': cmap(value), 'edgecolor': 'black', 'alpha': 0.9}
 
     def combine_images(background: Image.Image, foreground: Image.Image) -> Image.Image:
         bg_width, bg_height = background.size
         fg_width, fg_height = foreground.size
 
-        # Resize foreground image
-        new_fg_width = int(bg_width * 0.99)
-        new_fg_height = int((fg_height / fg_width) * new_fg_width)
-        foreground_resized = foreground.resize((new_fg_width, new_fg_height))
+        # Resize foreground image to match the background dimensions
+        foreground_resized = foreground.resize((bg_width, bg_height))
 
         # Create a new image for the resized foreground with the same size as the background
-        foreground_padded = Image.new("RGBA", (bg_width, bg_height), (0, 0, 0, 0))
-        fg_x = (bg_width - new_fg_width) // 2
-        fg_y = (bg_height - new_fg_height) // 2
-        foreground_padded.paste(foreground_resized, (fg_x, fg_y))
-
-        # Composite images
-        combined_image = Image.alpha_composite(background, foreground_padded)
-
+        combined_image = Image.alpha_composite(background, foreground_resized)
         return combined_image
+
+    def generate_color_legend(cmap, output_column) -> Image.Image:
+        # Create a new figure for the color bar
+        fig, ax = plt.subplots(figsize=(6, 1))  # Adjust size as needed
+        norm = mpl.colors.Normalize(vmin=gdf[output_column].min(), vmax=gdf[output_column].max())
+        cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation='horizontal')
+
+        ax.set_title(f"Legenda - {output_column}", fontsize=10, pad=10)
+        plt.tight_layout()
+
+        # Save legend as an image
+        legend_path = os.path.join("tempfiles", f"{generate_random_string(10)}_legend.png")
+        plt.savefig(legend_path, dpi=300, bbox_inches='tight', pad_inches=0.1, transparent=True)
+        plt.close()
+
+        return Image.open(legend_path).convert("RGBA")
 
     rand_imgname = os.path.join("tempfiles", f"{generate_random_string(10)}.png")
     map = gdf.explore(column=output_column, vmin=0, vmax=1, fitbounds="locations", map_kwrds={'scrollWheelZoom': 4}, style_kwds={'style_function': style_function_map}, use_container_width=True, categorical=False, legend=len(color) == 0)
@@ -261,10 +275,23 @@ def make_map(df: pd.DataFrame, name_column: str, output_column: str, color: str=
             plt.close()
             foreground = Image.open(rand_imgname).convert("RGBA")
             background = Image.open(os.path.join("required_files", "mapa_pe.png")).convert("RGBA")
+
             img = combine_images(background, foreground)
-            if abs(float(np.average(np.array(background) - np.array(img)))) >= 0.1:
-                img.save(rand_imgname)
-                break
+
+            # Generate the color legend only if a specific color is not provided
+            color_legend = None
+            if not color:
+                color_legend = generate_color_legend(plt.cm.viridis, output_column)
+
+            # Combine final image with color legend
+            if color_legend:
+                img_with_legend = Image.new("RGBA", (img.width, img.height + color_legend.height), (255, 255, 255, 0))
+                img_with_legend.paste(color_legend, (0, 0))
+                img_with_legend.paste(img, (0, color_legend.height))
+                img = img_with_legend
+
+            img.save(rand_imgname)
+            break
         
     return map, rand_imgname
 
@@ -484,6 +511,90 @@ def generate_report_page(title: str, progress: float, _ids: 'list[str]', _names:
     selectable_sections = [_id for _id, _ in _id_name_pairs]
     section_names = [_name for _, _name in _id_name_pairs]
     include_on_report = []
+
+    def get_month_name_in_portuguese(month: int) -> str:
+        # Mapeamento dos meses para português
+        months = {
+            1: "janeiro",
+            2: "fevereiro",
+            3: "março",
+            4: "abril",
+            5: "maio",
+            6: "junho",
+            7: "julho",
+            8: "agosto",
+            9: "setembro",
+            10: "outubro",
+            11: "novembro",
+            12: "dezembro"
+        }
+        return months.get(month, "").capitalize()
+
+    def generate_cover_page(title: str, output_file: str):
+        # Setup document
+        doc = SimpleDocTemplate(output_file, pagesize=A4, topMargin=20, bottomMargin=20)
+        elements = []
+        
+        # Styles
+        styles = getSampleStyleSheet()
+        
+        # Title style
+        style_title = ParagraphStyle(
+            'Title',
+            fontSize=36,
+            leading=42,
+            alignment=1,  # Center
+            fontName="Helvetica-Bold",
+            textColor=colors.HexColor('#808080'),
+        )
+        
+        # Subtitle style
+        style_subtitle = ParagraphStyle(
+            'Subtitle',
+            fontSize=24,
+            leading=28,
+            alignment=1,  # Center
+            fontName="Helvetica-Bold",
+            textColor=colors.HexColor('#808080'),
+        )
+        
+        # Date style
+        style_date = ParagraphStyle(
+            'Date',
+            fontSize=20,
+            leading=24,
+            alignment=1,  # Center
+            fontName="Helvetica",
+            textColor= colors.HexColor('#6495ED'),
+        )
+
+        # Add the header image (cabecalho.jpeg)
+        header_path = os.path.join("required_files", "cabecalho.jpeg")
+        if os.path.exists(header_path):
+            elements.append(ReportlabImage(header_path, width=500, height=80))
+            elements.append(Spacer(1, 240))  # Adjust the space as needed
+
+        # Add the title
+        elements.append(Paragraph("RELATÓRIO", style_title))
+        elements.append(Paragraph("DE APOIO A", style_title))
+        elements.append(Paragraph("AUDITORIAS", style_title))
+        elements.append(Spacer(1, 40))  # Adjust the space as needed
+
+        # Add the subtitle
+        elements.append(Paragraph(title, style_subtitle))
+        elements.append(Spacer(1, 160))  # Adjust the space as needed
+
+        # Add the location and date
+        current_date = f"{get_month_name_in_portuguese(datetime.now().month)} {datetime.now().year}"
+        elements.append(Paragraph("PERNAMBUCO", style_date))
+        elements.append(Paragraph(current_date, style_date))
+
+        # Build the PDF
+        doc.build(elements)
+
+
+    cover_pdf_path = os.path.join("required_files", "capa.pdf")
+    generate_cover_page(title, cover_pdf_path)
 
     with st.form("report_form"):
         st.markdown('Selecione as seções que deseja incluir no relatório')
