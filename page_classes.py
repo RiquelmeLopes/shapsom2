@@ -1,4 +1,5 @@
 import pandas as pd
+import streamlit as st
 from copy import deepcopy
 from PIL import Image
 from reportlab.lib.pagesizes import A4
@@ -511,21 +512,6 @@ class S2P4_Shap():
         self.finished_selection = False
 
     def write_page(self, name: str="shap.pdf"):
-        # Esse é o dataframe com o shap das colunas nos grupos
-        df: pd.DataFrame = deepcopy(self.df)
-        print("#"*80)
-        print("Escrevendo", name)
-        print(df)
-        print("#"*80)
-
-class S2P5_Arvore():
-    def __init__(self):
-        self.img_path = ""
-        self.fig = None
-        self.on_report = False
-        self.finished_selection = False
-    
-    def write_page(self, name: str="arvore.pdf"):
         doc = SimpleDocTemplate(name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
         styles = getSampleStyleSheet()
@@ -604,6 +590,22 @@ class S2P5_Arvore():
 
         # Build PDF
         doc.build(elements)
+
+
+class S2P5_Arvore():
+    def __init__(self):
+        self.img_path = ""
+        self.fig = None
+        self.on_report = False
+        self.finished_selection = False
+    
+    def write_page(self, name: str="arvore.pdf"):
+        # A imagem da árvore
+        img = Image.open(self.img_path)
+        print("#"*80)
+        print("Escrevendo", name)
+        print(img.size)
+        print("#"*80)
 
 class S2P6_AnaliseGrupos():
     def __init__(self):
