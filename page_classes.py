@@ -374,14 +374,11 @@ class S2P3_Heatmap():
             std = std.select_dtypes(include=[float, int])
 
             # Diretório para salvar os heatmaps
-            temp_dir = "tempfiles"
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
+            
+            avg_heatmap_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", 'tempfiles')
+            std_heatmap_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", 'tempfiles')
 
-            avg_heatmap_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
-            std_heatmap_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
-
-            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, temp_dir)
+            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, 'tempfiles')
 
             # Gera o PDF com as imagens combinadas e textos
             self.generate_pdf(name, combined_image_paths)
@@ -406,8 +403,10 @@ class S2P3_Heatmap():
             ax.set_title(f"{title} - Parte {index + 1}", pad=20, fontsize=5)
 
             # Remove as legendas dos eixos
-            ax.set_xticklabels(range(1, len(block.columns) + 1))
-            ax.set_yticklabels(range(1, len(block) + 1))
+            ax.set_xticks(range(len(block.columns)))
+            ax.set_xticklabels(range(1, len(block.columns) + 1), fontsize=3)
+            ax.set_yticks(range(len(block)))
+            ax.set_yticklabels(range(1, len(block) + 1), fontsize=3)
 
             # Salva o fragmento do heatmap
             heatmap_path = os.path.join(output_dir, f"heatmap_{title.replace(' ', '_').lower()}_{index + 1}.png")
@@ -467,21 +466,32 @@ class S2P3_Heatmap():
         )
         style_normal = styles["Normal"]
 
-        explanation_text = """
-        <b>Seção 2 - Visão dos Dados e Gráficos de Mapas de Calor</b>\n
+        style_caption = ParagraphStyle(
+            'Caption',
+            fontSize=10,
+            fontName="Helvetica-Oblique",
+            textColor=colors.blue
+        )
+
+        explanation_text1 = """
         Esta seção traz uma análise visual da base de dados, fornecendo mapas de calor para
         a média (Gráfico 1) e desvio padrão (Gráfico 2) dos fatores disponibilizados para cada
-        um dos municípios.\n
+        um dos municípios.\n"""
+        explanation_text2 = """
         Mapa de Calor, também conhecido como Heatmap, é uma visualização gráfica que usa
         cores para representar a intensidade dos valores em uma matriz de dados. Cada célula
         da matriz é colorida de acordo com seu valor, facilitando a identificação de padrões,
         tendências e anomalias nos dados.\n
+        """
+        explanation_text3 = """
         <b>Média:</b>\n
         - É a soma de todos os valores de um conjunto dividida pelo número de valores.
         Representa o valor médio.\n
         <b>Desvio padrão:</b>\n
         - Mede a dispersão dos valores em relação à média. Mostra o quanto os valores
         variam da média.\n
+        """
+        explanation_text4 = """
         <b>Importante:</b>\n
         Nos gráficos referentes aos Mapas de Calor:
         As linhas representam os municípios, que estão em ordem alfabética;
@@ -489,13 +499,24 @@ class S2P3_Heatmap():
         """
 
         elements.append(Paragraph("Seção 2 - Visão dos Dados e Gráficos de Mapas de Calor", style_title))
-        elements.append(Paragraph(explanation_text, style_normal))
+        elements.append(Paragraph(explanation_text1, style_normal))
+        elements.append(Paragraph(explanation_text2, style_normal))
+        elements.append(Paragraph(explanation_text3, style_normal))
+        elements.append(Paragraph(explanation_text4, style_normal))
+        elements.append(Spacer(1, 12))
 
-        # Adiciona as imagens combinadas no PDF
-        for combined_image_path in combined_image_paths:
-            combined_img = ReportlabImage(combined_image_path, width=500, height=300)
-            elements.append(combined_img)
-            elements.append(PageBreak())
+        # Adiciona a primeira imagem e quebra a página
+        elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
+        elements.append(Paragraph(f"<i>Figura 2.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
+        elements.append(PageBreak())
+
+        # Adiciona as imagens seguintes (segunda e terceira) uma embaixo da outra na segunda folha
+        elements.append(ReportlabImage(combined_image_paths[1], width=500, height=250))
+        elements.append(Paragraph(f"<i>Figura 2.2 - Heatmap média e desvio padrão parte 2</i>", style_caption))
+        elements.append(Spacer(1, 12))
+        elements.append(ReportlabImage(combined_image_paths[2], width=500, height=250))
+        elements.append(Paragraph(f"<i>Figura 2.3 - Heatmap média e desvio padrão parte 3</i>", style_caption))
+        elements.append(PageBreak())
 
         # Gera o PDF
         doc.build(elements)
@@ -590,7 +611,6 @@ class S2P4_Shap():
 
         # Build PDF
         doc.build(elements)
-
 
 class S2P5_Arvore():
     def __init__(self):
@@ -714,86 +734,143 @@ class S2P7_HeatmapFiltro():
         std: pd.DataFrame = deepcopy(self.std_df)
 
         if avg is not None and std is not None:
+            # Filtra apenas os valores numéricos
+            avg = avg.select_dtypes(include=[float, int])
+            std = std.select_dtypes(include=[float, int])
 
-            std_heatmap_path = os.path.join('tempfiles', "heatmap_filtro_std.png")
-            avg_heatmap_path = os.path.join('tempfiles', "heatmap_filtro_avg.png")
+            # Diretório para salvar os heatmaps
+            temp_dir = "tempfiles"
+            if not os.path.exists(temp_dir):
+                os.makedirs(temp_dir)
 
-            # Gera os heatmaps e salva na pasta tempfiles
-            self.generate_heatmap(avg, avg_heatmap_path, "Média Filtrada", 'YlOrRd')
-            self.generate_heatmap(std, std_heatmap_path, "Desvio Padrão Filtrado",'gray')
-            combined_image_path = os.path.join('tempfiles', "combined_heatmap_filtro.png")
+            avg_heatmap_paths = self.generate_heatmap_fragments(avg, "Média Filtrada", "YlOrRd", temp_dir)
+            std_heatmap_paths = self.generate_heatmap_fragments(std, "Desvio Padrão Filtrado", "gray", temp_dir)
 
-            # Gera o PDF com os DataFrames e heatmaps
-            self.combine_images_horizontally(avg_heatmap_path, std_heatmap_path, combined_image_path)
-            self.generate_pdf(name, combined_image_path)
+            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, temp_dir)
 
-            # Exclui as imagens após gerar o PDF
-            if os.path.exists(avg_heatmap_path):
-                os.remove(avg_heatmap_path)
-            if os.path.exists(std_heatmap_path):
-                os.remove(std_heatmap_path)
+            # Gera o PDF com as imagens combinadas e textos
+            self.generate_pdf(name, combined_image_paths)
 
-    def generate_heatmap(self, df, filename, title, cmap):
-        # Garante que apenas colunas numéricas sejam usadas no heatmap
-        df_numeric = df.select_dtypes(include=[float, int])
+    def generate_heatmap_fragments(self, df, title, cmap, output_dir):
+        heatmap_paths = []
+        row_blocks = [df.iloc[i:i + 63, :] for i in range(0, len(df), 63)]
 
-        # Configuração da figura
-        fig, ax = plt.subplots(figsize=(16, 12))
+        for index, block in enumerate(row_blocks):
+            height = 4 * (len(block) / 63)  # Ajusta a altura de acordo com as linhas (base 4in para 63 linhas)
+            max_cols = 30
+            width = 3 * min(len(block.columns), max_cols) / max_cols  # Ajusta a largura com base nas colunas
 
-        # Criação do heatmap diretamente com matplotlib
-        cax = ax.matshow(df_numeric, cmap=cmap)        
+            fig, ax = plt.subplots(figsize=(width, height))  # Configura a largura e altura dinamicamente
+            cax = ax.matshow(block, cmap=cmap)
 
-        # Configurações do gráfico
-        fig.colorbar(cax)
-        ax.set_title(title, pad=20)
+            # Adiciona a barra de cores em cima
+            cbar = fig.colorbar(cax, orientation='horizontal', pad=0.1)
+            cbar.ax.tick_params(labelsize=8)
 
-        num_rows, num_cols = df_numeric.shape
-        ax.set_xticks(range(num_cols))
-        ax.set_yticks(range(num_rows))
-        ax.set_xticklabels(range(1, num_cols + 1)) 
-        ax.set_yticklabels(range(1, num_rows + 1)) 
+            # Adiciona o título acima da barra de cores
+            ax.set_title(f"{title} - Parte {index + 1}", pad=20, fontsize=5)
 
-        # Ajusta o layout e salva a figura
-        plt.tight_layout()
-        plt.savefig(filename, dpi=300)
-        plt.close()
+            # Adiciona as legendas dos eixos como números de 1 a n com tamanho de fonte reduzido
+            ax.set_xticks(range(len(block.columns)))
+            ax.set_xticklabels(range(1, len(block.columns) + 1), fontsize=3)
+            ax.set_yticks(range(len(block)))
+            ax.set_yticklabels(range(1, len(block) + 1), fontsize=3)
 
-    def combine_images_horizontally(self, img1_path, img2_path, output_path):
-        # Abre as duas imagens
-        img1 = Image.open(img1_path)
-        img2 = Image.open(img2_path)
+            # Salva o fragmento do heatmap
+            heatmap_path = os.path.join(output_dir, f"heatmap_{title.replace(' ', '_').lower()}_{index + 1}.png")
+            plt.tight_layout()
+            plt.savefig(heatmap_path, dpi=300)
+            plt.close()
 
-        # Calcula a altura máxima e a largura combinada
-        max_height = max(img1.height, img2.height)
-        total_width = img1.width + img2.width
+            heatmap_paths.append(heatmap_path)
 
-        # Cria uma nova imagem com o tamanho combinado
-        combined_img = Image.new("RGB", (total_width, max_height))
+        return heatmap_paths
 
-        # Cola as imagens lado a lado
-        combined_img.paste(img1, (0, 0))
-        combined_img.paste(img2, (img1.width, 0))
+    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, output_dir):
+        combined_image_paths = []
 
-        # Salva a imagem combinada
-        combined_img.save(output_path)
+        for i in range(len(avg_heatmap_paths)):
+            # Abre as duas imagens
+            avg_img = Image.open(avg_heatmap_paths[i])
+            std_img = Image.open(std_heatmap_paths[i])
 
-    def generate_pdf(self, pdf_name, combined_image_path):
-        # Define margens mínimas para maximizar o espaço útil
+            # Calcula a altura máxima e a largura combinada
+            max_height = max(avg_img.height, std_img.height)
+            total_width = avg_img.width + std_img.width
+
+            # Cria uma nova imagem com o tamanho combinado
+            combined_img = Image.new("RGB", (total_width, max_height))
+
+            # Cola as imagens lado a lado
+            combined_img.paste(avg_img, (0, 0))
+            combined_img.paste(std_img, (avg_img.width, 0))
+
+            # Salva a imagem combinada
+            combined_image_path = os.path.join(output_dir, f"combined_heatmap_{i + 1}.png")
+            combined_img.save(combined_image_path)
+
+            combined_image_paths.append(combined_image_path)
+
+        return combined_image_paths
+
+    def generate_pdf(self, pdf_name, combined_image_paths):
         doc = SimpleDocTemplate(pdf_name, pagesize=A4, topMargin=20, bottomMargin=20)
         elements = []
 
         # Adiciona o cabeçalho no topo absoluto da página
         header_path = os.path.join("required_files", "cabecalho.jpeg")
         if os.path.exists(header_path):
-            elements.append(ReportlabImage(header_path, width=500, height=100))  # Tamanho ajustado em pixels
+            elements.append(ReportlabImage(header_path, width=500, height=100))
             elements.append(Spacer(1, 12))
 
-        # Adiciona a imagem combinada ao PDF
-        combined_image = ReportlabImage(combined_image_path, width=500, height=700)  # Define o tamanho em pixels
-        elements.append(combined_image)
+        # Estilos para o texto
+        styles = getSampleStyleSheet()
+        style_title = ParagraphStyle(
+            'Title',
+            fontSize=14,
+            leading=16,
+            fontName="Helvetica-Bold",
+            spaceAfter=14
+        )
+
+        style_caption = ParagraphStyle(
+            'Caption',
+            fontSize=10,
+            fontName="Helvetica-Oblique",
+            textColor=colors.blue
+        )
+        style_normal = styles["Normal"]
+
+        explanation_text = """
+        <b>Esta seção, assim como na seção 2, traz uma análise visual da base de dados, porém agora em 
+        uma fatia dos dados escolida pelo usuário. Essa visualização é útil para analizar de forma mais detalhada elementos de 
+        interesse da base de dados.</b>\n
+        """
+
+        elements.append(Paragraph("Seção 5 - Filtro de Triagem", style_title))
+        elements.append(Paragraph(explanation_text, style_normal))
+        elements.append(Spacer(1, 12))
+
+        # Adiciona a primeira imagem e quebra a página
+        elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
+        elements.append(Paragraph(f"<i>Figura 5.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
+        elements.append(PageBreak())
+
+        # Adiciona as imagens seguintes (segunda e terceira) uma embaixo da outra na segunda folha
+        elements.append(ReportlabImage(combined_image_paths[1], width=500, height=250))
+        elements.append(Paragraph(f"<i>Figura 5.2 - Heatmap média e desvio padrão parte 2</i>", style_caption))
+        elements.append(Spacer(1, 12))
+        elements.append(ReportlabImage(combined_image_paths[2], width=500, height=250))
+        elements.append(Paragraph(f"<i>Figura 5.3 - Heatmap média e desvio padrão parte 3</i>", style_caption))
+        elements.append(PageBreak())
 
         # Gera o PDF
         doc.build(elements)
+
+        # Exclui as imagens combinadas
+        for path in combined_image_paths:
+            if os.path.exists(path):
+                os.remove(path)
 
 
 class S2P8_Anomalias():
