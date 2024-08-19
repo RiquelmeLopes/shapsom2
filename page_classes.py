@@ -458,18 +458,16 @@ class S2P3_Heatmap():
             if not os.path.exists(temp_dir):
                 os.makedirs(temp_dir)
 
-            avg_heatmap_paths, avg_legend_paths, avg_title_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
-            std_heatmap_paths, std_legend_paths, std_title_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
+            avg_heatmap_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
+            std_heatmap_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
 
-            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, temp_dir)
+            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, temp_dir)
 
             # Gera o PDF com as imagens combinadas e textos
             self.generate_pdf(name, combined_image_paths)
 
     def generate_heatmap_fragments(self, df, title, cmap, output_dir):
         heatmap_paths = []
-        legend_paths = []
-        title_paths = []
         row_blocks = [df.iloc[i:i + 63, :] for i in range(0, len(df), 63)]
 
         # Definindo os valores contínuos para xlabels e ylabels
@@ -477,13 +475,13 @@ class S2P3_Heatmap():
         y_label_start = 1
 
         for index, block in enumerate(row_blocks):
-            height = 4 * (len(block) / 63)  # Ajusta a altura de acordo com as linhas (base 4in para 63 linhas)
-            max_cols = 30
-            width = 3 * min(len(block.columns), max_cols) / max_cols  # Ajusta a largura com base nas colunas
-
             # Cria o heatmap
-            fig, ax = plt.subplots(figsize=(width, height))  # Configura a largura e altura dinamicamente
-            cax = ax.matshow(block, cmap=cmap)
+            w, h = len(block.columns)/10, len(block)/10
+            h *= 0.8
+            fig, ax = plt.subplots(figsize=(w,h)) # Configura a largura e altura dinamicamente
+            cax = ax.matshow(block, cmap=cmap, vmin=0, vmax=1)
+            cbar = fig.colorbar(cax, ax=ax, orientation='horizontal', fraction=0.046*w/h, pad=0.10*w/h)
+            plt.title(f"{title} - Parte {index + 1}")
 
             # Adiciona as legendas contínuas nos eixos
             x_labels = range(x_label_start, x_label_start + len(block.columns))
@@ -494,69 +492,38 @@ class S2P3_Heatmap():
             ax.set_yticks(range(len(block)))
             ax.set_yticklabels(y_labels, fontsize=4)
 
+            ax.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=True, labeltop=False)
+            ax.tick_params(axis='y', which='both', left=True, right=False, labelleft=True, labelright=False)
+
             x_label_start += len(block.columns)
             y_label_start += len(block)
 
             # Salva o heatmap sem a barra de cores
             heatmap_path = os.path.join(output_dir, f"heatmap_{title.replace(' ', '_').lower()}_{index + 1}.png")
-            plt.tight_layout()
-            plt.savefig(heatmap_path, dpi=300)
-            plt.close()
-
-            # Cria a barra de cores separada
-            fig, ax = plt.subplots(figsize=(width, 0.4))  # Barra de cores pequena e horizontal
-            fig.colorbar(cax, cax=ax, orientation='horizontal')
-            legend_path = os.path.join(output_dir, f"legend_{title.replace(' ', '_').lower()}_{index + 1}.png")
-            plt.tight_layout()
-            plt.savefig(legend_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
-            plt.close()
-
-            # Cria o título separado como uma imagem
-            fig, ax = plt.subplots(figsize=(width, 0.5))
-            ax.text(0.5, 0.5, f"{title} - Parte {index + 1}", ha='center', va='center', fontsize=12)
-            ax.axis('off')
-            title_path = os.path.join(output_dir, f"title_{title.replace(' ', '_').lower()}_{index + 1}.png")
-            plt.tight_layout()
-            plt.savefig(title_path, dpi=300, bbox_inches='tight', pad_inches=0.1)
+            plt.savefig(heatmap_path, dpi=150, bbox_inches='tight')
             plt.close()
 
             heatmap_paths.append(heatmap_path)
-            legend_paths.append(legend_path)
-            title_paths.append(title_path)
 
-        return heatmap_paths, legend_paths, title_paths
+        return heatmap_paths
 
-    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, output_dir):
+    def combine_images(self, avg_heatmap_paths, std_heatmap_paths, output_dir):
         combined_image_paths = []
 
         for i in range(len(avg_heatmap_paths)):
             with Image.open(avg_heatmap_paths[i]) as avg_img, \
-                 Image.open(std_heatmap_paths[i]) as std_img, \
-                 Image.open(avg_legend_paths[i]) as avg_legend, \
-                 Image.open(std_legend_paths[i]) as std_legend, \
-                 Image.open(avg_title_paths[i]) as avg_title, \
-                 Image.open(std_title_paths[i]) as std_title:
+                 Image.open(std_heatmap_paths[i]) as std_img:
 
                 # Calcula a altura máxima e a largura combinada dos heatmaps
                 max_height = max(avg_img.height, std_img.height)
                 total_width = avg_img.width + std_img.width
 
                 # Calcula a altura das legendas e títulos e ajusta o tamanho total da imagem combinada
-                legend_height = max(avg_legend.height, std_legend.height)
-                title_height = max(avg_title.height, std_title.height)
-                combined_img = Image.new("RGB", (total_width, max_height + legend_height + title_height))
-
-                # Cola os títulos em cima
-                combined_img.paste(avg_title, (0, 0))
-                combined_img.paste(std_title, (avg_img.width, 0))
-
-                # Cola as legendas logo abaixo dos títulos
-                combined_img.paste(avg_legend, (0, title_height))
-                combined_img.paste(std_legend, (avg_img.width, title_height))
+                combined_img = Image.new("RGB", (total_width, max_height))
 
                 # Cola os heatmaps logo abaixo das legendas
-                combined_img.paste(avg_img, (0, title_height + legend_height))
-                combined_img.paste(std_img, (avg_img.width, title_height + legend_height))
+                combined_img.paste(avg_img, (0, 0))
+                combined_img.paste(std_img, (avg_img.width, 0))
 
                 # Salva a imagem combinada
                 combined_image_path = os.path.join(output_dir, f"combined_heatmap_{i + 1}.png")
@@ -634,7 +601,8 @@ class S2P3_Heatmap():
 
         if combined_image_paths:
             # Adiciona a primeira imagem e quebra a página
-            elements.append(ReportlabImage(combined_image_paths[0], width=500, height=300))
+            w,h = Image.open(combined_image_paths[0]).size
+            elements.append(ReportlabImage(combined_image_paths[0], width=400, height=int(400*h/w)))
             elements.append(Paragraph(f"<i>Figura 2.1 - Heatmap média e desvio padrão parte 1</i>", style_caption))
             elements.append(PageBreak())
 
@@ -642,11 +610,13 @@ class S2P3_Heatmap():
                 # Adiciona o restante das imagens duas por folha
                 fig_idx = (idx+1)*2
                 if i1:
-                    elements.append(ReportlabImage(i1, width=500, height=300))
+                    w,h = Image.open(i1).size
+                    elements.append(ReportlabImage(i1, width=400, height=int(400*h/w)))
                     elements.append(Paragraph(f"<i>Figura 2.{fig_idx} - Heatmap média e desvio padrão parte {fig_idx}</i>", style_caption))
                     elements.append(Spacer(1, 12))
                 if i2:
-                    elements.append(ReportlabImage(i2, width=500, height=300))
+                    w,h = Image.open(i2).size
+                    elements.append(ReportlabImage(i2, width=400, height=int(400*h/w)))
                     elements.append(Paragraph(f"<i>Figura 2.{fig_idx+1} - Heatmap média e desvio padrão parte {fig_idx+1}</i>", style_caption))
                     elements.append(PageBreak())
 
@@ -1016,10 +986,10 @@ class S2P7_HeatmapFiltro():
             if not os.path.exists(temp_dir):
                 os.makedirs(temp_dir)
 
-            avg_heatmap_paths, avg_legend_paths, avg_title_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
-            std_heatmap_paths, std_legend_paths, std_title_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
+            avg_heatmap_paths, avg_legend_paths = self.generate_heatmap_fragments(avg, "Média", "YlOrRd", temp_dir)
+            std_heatmap_paths, std_legend_paths = self.generate_heatmap_fragments(std, "Desvio Padrão", "gray", temp_dir)
 
-            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, avg_title_paths, std_title_paths, temp_dir)
+            combined_image_paths = self.combine_images(avg_heatmap_paths, std_heatmap_paths, avg_legend_paths, std_legend_paths, temp_dir)
 
             # Gera o PDF com as imagens combinadas e textos
             self.generate_pdf(name, combined_image_paths)
@@ -1686,4 +1656,3 @@ class S3P1_RelatorioIndividual():
         df4 = pd.DataFrame(data={'Nome': [label for label in data['vizinhos']] if len(data['vizinhos']) > 0 else ['---']})
         
         return df1, df2, df3, df4
-    
